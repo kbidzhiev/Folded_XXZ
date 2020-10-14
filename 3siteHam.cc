@@ -3,7 +3,8 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
 // C++ code for 3-site Hamiltonian
-#include "itensor/all.h"
+//#include "itensor/all.h"
+#include "/home/kemal/Programs/itensor/itensor/all.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
