@@ -3,8 +3,7 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
 // C++ code for 3-site Hamiltonian
-//#include "itensor/all.h"
-#include "/home/kemal/Programs/itensor/itensor/all.h"
+#include "itensor/all.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -275,9 +274,15 @@ public:
 				cout << "Time evolutions with Ancilla" << endl;
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
 				TimeGates(begin2, end, 0.5 * tau, sites, param); //B
-				TimeGates(begin4, end, tau, sites, param); 		 //C		
+				TimeGates(begin4, end, tau, sites, param); 	 //C		
 				TimeGates(begin2, end, 0.5 * tau, sites, param); //B
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
+
+				AncillaGates(begin0, end, 0.5 * tau, sites, param); //A
+				AncillaGates(begin2, end, 0.5 * tau, sites, param); //B
+				AncillaGates(begin4, end, tau, sites, param); 	 //C		
+				AncillaGates(begin2, end, 0.5 * tau, sites, param); //B
+				AncillaGates(begin0, end, 0.5 * tau, sites, param); //A
 				/*
 				TimeGates(begin0, end, a1 * tau, sites, param); //A
 				TimeGates(begin2, end, b1 * tau, sites, param); //B
@@ -305,27 +310,31 @@ public:
 		//const double TR = param.val("TR");
 		for (int j = begin; j < end - 4; j += step) {
 			if (j < dot && dot < j + step - 1) {
-				cout << "j = [" << j << ", " << j + 2 << ", " << j + 5 << "]"
+				cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]"
 						<< endl;
 				continue; // here we skip part of loop and got to the next j = j+ step
 			}
 			cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< endl;
-			auto hh = J * 4 * 0.25 * op(sites, "Sp", j) * op(sites, "Id", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sm", j + 4) * op(sites, "Id", j + 5);
+			auto hh = J * 4 * 0.25
+				* op(sites, "Sp", j )
+				* op(sites, "Id", j + 2)
+				* op(sites, "Sm", j + 4);
 
-			hh += J * 4 * 0.25 * op(sites, "Sm", j) * op(sites, "Id", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sp", j + 4) * op(sites, "Id", j + 5);
+			hh += J * 4 * 0.25 
+				* op(sites, "Sm", j )
+				* op(sites, "Id", j + 2)
+				* op(sites, "Sp", j + 4);
 
-			hh += -J * 8 * 0.25 * op(sites, "Sm", j) * op(sites, "Id", j + 1)
-					* op(sites, "Sz", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sp", j + 4) * op(sites, "Id", j + 5);
+			hh += -J * 8 * 0.25
+				* op(sites, "Sp", j )
+				* op(sites, "Sz", j + 2)
+				* op(sites, "Sm", j + 4);
 
-			hh += -J * 8 * 0.25 * op(sites, "Sp", j) * op(sites, "Id", j + 1)
-					* op(sites, "Sz", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sm", j + 4) * op(sites, "Id", j + 5);
+			hh += -J * 8 * 0.25
+				* op(sites, "Sm", j ) 
+				* op(sites, "Sz", j + 2) 
+				* op(sites, "Sp", j + 4);
 
 			auto G = expHermitian(hh, -tau);
 			gates.emplace_back(j, move(G));
@@ -336,101 +345,136 @@ public:
 		const int step = 6;
 		const double J = param.val("J");
 		for (int j = begin; j < end - 4; j += step) {
-			cout << "j = (" << j << ", " << j + 2 << ", " << j + 5 << ")"
+			cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< endl;
 			//this part act on real sites	
-			auto hh = J * 4 * 0.25 * op(sites, "Sp", j) * op(sites, "Id", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sm", j + 4) * op(sites, "Id", j + 5);
+			auto hh = J * 4 * 0.25
+				* op(sites, "Sp", j )
+				* op(sites, "Id", j + 2)
+				* op(sites, "Sm", j + 4);
 
-			hh += J * 4 * 0.25 * op(sites, "Sm", j) * op(sites, "Id", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sp", j + 4) * op(sites, "Id", j + 5);
+			hh += J * 4 * 0.25 
+				* op(sites, "Sm", j )
+				* op(sites, "Id", j + 2)
+				* op(sites, "Sp", j + 4);
 
-			hh += -J * 8 * 0.25 * op(sites, "Sm", j) * op(sites, "Id", j + 1)
-					* op(sites, "Sz", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sp", j + 4) * op(sites, "Id", j + 5);
+			hh += -J * 8 * 0.25
+				* op(sites, "Sp", j )
+				* op(sites, "Sz", j + 2)
+				* op(sites, "Sm", j + 4);
 
-			hh += -J * 8 * 0.25 * op(sites, "Sp", j) * op(sites, "Id", j + 1)
-					* op(sites, "Sz", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Sm", j + 4) * op(sites, "Id", j + 5);
-
-			//this part acts on ancillas
-			hh += -J * 4 * 0.25 * op(sites, "Id", j) * op(sites, "Sp", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Id", j + 4) * op(sites, "Sm", j + 5);
-
-			hh += -J * 4 * 0.25 * op(sites, "Id", j) * op(sites, "Sm", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Id", j + 3)
-					* op(sites, "Id", j + 4) * op(sites, "Sp", j + 5);
-
-			hh += J * 8 * 0.25 * op(sites, "Id", j) * op(sites, "Sp", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Sz", j + 3)
-					* op(sites, "Id", j + 4) * op(sites, "Sm", j + 5);
-
-			hh += J * 8 * 0.25 * op(sites, "Id", j) * op(sites, "Sm", j + 1)
-					* op(sites, "Id", j + 2) * op(sites, "Sz", j + 3)
-					* op(sites, "Id", j + 4) * op(sites, "Sp", j + 5);
+			hh += -J * 8 * 0.25
+				* op(sites, "Sm", j ) 
+				* op(sites, "Sz", j + 2) 
+				* op(sites, "Sp", j + 4);
 
 			auto G = expHermitian(hh, -tau);
 			gates.emplace_back(j, move(G));
 		}
 	}
-	void Evolve(MPS &psi, const Args &args) {
-		for (auto &gate : gates) {
+	void AncillaGates(const int begin, const int end, const complex<double> tau,
+			const SiteSet &sites, const ThreeSiteParam &param) {
+		const int step = 6;
+		const double J = param.val("J");
+		for (int j = begin; j < end - 4; j += step) {
+			cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
+					<< endl;
+			//this part act on real sites	
+			auto hh = -J * 4 * 0.25
+				* op(sites, "Sp", j + 1)
+				* op(sites, "Id", j + 3)
+				* op(sites, "Sm", j + 5);
 
+			hh += -J * 4 * 0.25 
+				* op(sites, "Sm", j + 1)
+				* op(sites, "Id", j + 3)
+				* op(sites, "Sp", j + 5);
+
+			hh += J * 8 * 0.25
+				* op(sites, "Sp", j + 1)
+				* op(sites, "Sz", j + 3)
+				* op(sites, "Sm", j + 5);
+
+			hh += J * 8 * 0.25
+				* op(sites, "Sm", j + 1) 
+				* op(sites, "Sz", j + 3) 
+				* op(sites, "Sp", j + 5);
+
+			auto G = expHermitian(hh, -tau);
+			ancilla_gates.emplace_back(j, move(G));
+		}
+	}
+	void EvolvePhysical(MPS &psi, const Args &args) {
+		for (auto &gate : gates) {
 			auto j = gate.i1;
 			auto &G = gate.G;
-			psi.position(j);
-
-			auto AA = psi(j) * psi(j + 1) * psi(j + 2) * psi(j + 3) * psi(j + 4)
-					* psi(j + 5);
-			AA = G * AA;
-			AA /= norm(AA);
-			AA.noPrime();
+			SwapNextSites(psi,j); //swap j,j+1
+			SwapNextSites(psi,j+3);//Now physical sites are j+1,j+2,j+3			
+			psi.position(j+2);
+			auto WF = psi(j + 1) * psi(j + 2) * psi(j + 3);
+			WF = G * WF;
+			WF /= norm(WF);
+			WF.noPrime();
 			{
-				auto [Uj, Dj, Vj] = svd(AA,
-						{ siteIndex(psi, j), leftLinkIndex(psi, j) }, args);
-				auto indR = commonIndex(Dj, Vj);
-				Uj = Uj * Dj;
-				AA = Vj;
-
-				auto [Uj1, Dj1, Vj1] = svd(AA, { siteIndex(psi, j + 1), indR },
-						args);
-				indR = commonIndex(Dj1, Vj1);
-				Uj1 = Uj1 * Dj1;
-				AA = Vj1;
-
-				auto [Uj2, Dj2, Vj2] = svd(AA, { siteIndex(psi, j + 2), indR },
-						args);
-				indR = commonIndex(Dj2, Vj2);
-				Uj2 = Uj2 * Dj2;
-				AA = Vj2;
-
-				auto [Uj3, Dj3, Vj3] = svd(AA, { siteIndex(psi, j + 3), indR },
-						args);
-				indR = commonIndex(Dj3, Vj3);
-				Uj3 = Uj3 * Dj3;
-				AA = Vj3;
-
-				auto [Uj4, Dj4, Vj4] = svd(AA, { siteIndex(psi, j + 4), indR },
-						args);
-				indR = commonIndex(Dj4, Vj4);
-				Uj4 = Uj4 * Dj4;
-				AA = Vj4;
-
-				psi.set(j, Uj);
+				auto [Uj1,Vj1] = factor(WF, { siteIndex(psi, j + 1), leftLinkIndex(psi, j + 1) }, args);
+				auto indR = commonIndex(Uj1, Vj1);
+				auto [Uj2,Vj2] = factor(Vj1, { siteIndex(psi, j + 2), indR },args);
 				psi.set(j + 1, Uj1);
 				psi.set(j + 2, Uj2);
-				psi.set(j + 3, Uj3);
-				psi.set(j + 4, Uj4);
-				psi.set(j + 5, Vj4);
+				psi.set(j + 3, Vj2);
+				SwapNextSites(psi,j+3);				
+				SwapNextSites(psi,j);
 			}
 		}
-		psi.orthogonalize();
+	}
+	void EvolveAncillas(MPS &psi, const Args &args) {
+		for (auto &gate : ancilla_gates) {
+			auto j = gate.i1;
+			auto &G = gate.G;
+			SwapNextSites(psi,j+1); //swap j+1,j+2
+			SwapNextSites(psi,j+4);//Now ancilla sites are j+2,j+3,j+4
+			psi.position(j+3);
+			auto WF = psi(j + 2) * psi(j + 3) * psi(j + 4);
+			WF = G * WF;
+			WF /= norm(WF);
+			WF.noPrime();
+			{
+				auto [Uj1,Vj1] = factor(WF, { siteIndex(psi, j + 2), leftLinkIndex(psi, j + 2) }, args);
+				auto indR = commonIndex(Uj1, Vj1);
+				auto [Uj2,Vj2] = factor(Vj1, { siteIndex(psi, j + 3), indR },args);
+				psi.set(j + 2, Uj1);
+				psi.set(j + 3, Uj2);
+				psi.set(j + 4, Vj2);
+				SwapNextSites(psi,j+4);				
+				SwapNextSites(psi,j+1);
+			}
+		}
+	}
+	void Evolve(MPS &psi, const Args &args){
+		EvolvePhysical(psi, args);
+	//	EvolveAncillas(psi, args);
+	}
+	void SwapNextSites(MPS &psi, const int j){
+		//cout << "in swap" << endl;
+		psi.position(j);
+		auto WF = psi(j) * psi(j + 1);
+		auto [U,V] = factor(WF,
+					{ siteIndex(psi, j+1), leftLinkIndex(psi, j) }, {"Truncate=", false});
+		psi.set(j, U);
+		psi.set(j + 1, V);
+		/*		
+		auto [U, D, V] = svd(WF,
+					{ siteIndex(psi, j+1), leftLinkIndex(psi, j) }, {"Truncate=", false});
+		psi.set(j, U);
+		psi.set(j + 1, D*V);
+		*/
+		psi.position(j);
+		//psi.orthogonalize();
+		//cout << "out swap" << endl;
 	}
 private:
 	vector<TGate> gates;
+	vector<TGate> ancilla_gates;
 };
 
 void DisconnectChains(MPS &psi, const int j) {
@@ -683,6 +727,7 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
+		
 
 		// ------- entanglement Entropy profile -----
 		if (param.val("Eprof") > 0)
@@ -787,17 +832,21 @@ int main(int argc, char *argv[]) {
 
 		if (n < beta_steps_min) {
 			cout << "Temperature evol with H" << endl;
-			expH_beta.Evolve(psi, args0);
+			expH_beta.EvolvePhysical(psi, args0);
+			psi.orthogonalize(args);
 			//DisconnectChains(psi, dot+1);
 			cout << "dot = " << dot + 1 << endl;
+
 			psi.normalize();
 		} else if (n < beta_steps_max) {
 			cout << "Temperature evol with H_half" << endl;
-			expH_beta_half.Evolve(psi, args0);
+			expH_beta_half.EvolvePhysical(psi, args0);
+			psi.orthogonalize(args);			
 			psi.normalize();
 		} else {
 			cout << "Time evol" << endl;
 			expH.Evolve(psi, args);
+			psi.orthogonalize(args);
 			//psi.normalize();
 		}
 		cout << "max bond dim = " << maxLinkDim(psi) << endl;
