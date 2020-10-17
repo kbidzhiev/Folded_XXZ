@@ -668,12 +668,17 @@ int main(int argc, char *argv[]) {
 	const double dbeta = param["dbeta"];
 	TrotterExp expH_beta(sites, param, 0.5 * dbeta);
 	
-	cout << "Trotter Gates for tau" << endl;
-	TrotterExp expH(sites, param, Cplx_i * 1.0 * tau);
 
 	cout << "Trotter Gates Half for beta " << endl;
 	param["begin"] = dot + 1;
 	TrotterExp expH_beta_half(sites, param, 0.5 * dbeta);
+
+	
+        cout << "Trotter Gates for tau" << endl;
+        param["begin"] = 1;
+	param["hL"] = 0;
+        param["hR"] = 0;
+	TrotterExp expH(sites, param, Cplx_i * 1.0 * tau);
 
 
 
