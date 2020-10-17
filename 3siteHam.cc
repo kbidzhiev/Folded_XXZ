@@ -302,6 +302,11 @@ public:
 			const ThreeSiteParam &param) {
 		const int step = 6;
 		const double J = param.val("J");
+		const double hL = param.val("hL");
+		const double hR = param.val("hR");
+	        const double TL = param.val("TL");
+                const double TR = param.val("TR");	
+		double mu = 0;
 		const int dot = length(sites) / 2;
 		cout << "dot in trotter = " << dot << endl;
 		//const double hL = param.val("hL");
@@ -335,7 +340,16 @@ public:
 				* op(sites, "Sm", j ) 
 				* op(sites, "Sz", j + 2) 
 				* op(sites, "Sp", j + 4);
-
+                        
+                        if (j <= dot) {
+                        	mu = hL * TL;
+                        } else {
+                                mu = hR * TR;
+                        }
+                	hh += -J * mu * pow(-1, (j + 1) / 2) * op(sites, "Sz", j);
+			hh += -J * mu * pow(-1, (j + 1 + 2) / 2) * op(sites, "Sz", j + 2);
+			hh += -J * mu * pow(-1, (j + 1 + 4) / 2) * op(sites, "Sz", j + 4);			
+	
 			auto G = expHermitian(hh, -tau);
 			gates.emplace_back(j, move(G));
 		}
