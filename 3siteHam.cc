@@ -346,9 +346,18 @@ public:
                         } else {
                                 mu = hR * TR;
                         }
-                	hh += -J * mu * pow(-1, (j + 1) / 2) * op(sites, "Sz", j);
-			hh += -J * mu * pow(-1, (j + 1 + 2) / 2) * op(sites, "Sz", j + 2);
-			hh += -J * mu * pow(-1, (j + 1 + 4) / 2) * op(sites, "Sz", j + 4);			
+                	hh += -J * mu * pow(-1, (j + 1) / 2) 
+				* op(sites, "Sz", j)
+				* op(sites, "Id", j + 2)
+				* op(sites, "Id", j + 4);
+			hh += -J * mu * pow(-1, (j + 1 + 2) / 2)
+				* op(sites, "Id", j)
+				* op(sites, "Sz", j + 2)
+				* op(sites, "Id", j + 4);
+			hh += -J * mu * pow(-1, (j + 1 + 4) / 2) 
+				* op(sites, "Id", j)
+				* op(sites, "Id", j + 2)
+				* op(sites, "Sz", j + 4);			
 	
 			auto G = expHermitian(hh, -tau);
 			gates.emplace_back(j, move(G));
