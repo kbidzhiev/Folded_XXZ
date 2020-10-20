@@ -45,6 +45,7 @@ int BondDim(const MPS &psi, const int i) {
 	return (dim(bond_index));
 }
 
+// < Sz_i >
 double Sz(MPS& psi, const auto& sites, const int i){ //<psi|Sz|psi> at site i
 	psi.position(i);
 	ITensor ket = psi(i); // read only access
@@ -57,7 +58,8 @@ double Sz(MPS& psi, const auto& sites, const int i){ //<psi|Sz|psi> at site i
 	return real(sz);
 }
 
-complex<double> Correlation(MPS& psi, const auto& sites, const string op_name1, const string op_name2, const int i, const int j) {//< Sp_i Sm_i+4 >	
+//< Sp_i Sm_i+4 >
+complex<double> Correlation(MPS& psi, const auto& sites, const string op_name1, const string op_name2, const int i, const int j) {	
 	ITensor ket = psi(i);
 	auto Sp = op(sites, op_name1, i);
 	auto Sm = op(sites, op_name2, j);
@@ -102,29 +104,32 @@ complex<double> SzCorrelation (MPS& psi, const auto& sites, const string op_name
 	return correlation;
 }
 
-double Energy(MPS& psi, const auto& sites, const int i) { //EgergyKin + EnergyPot at site i (i,i+2,i+4)
-	//4 is here because 2S_+ = \sigma_+, 2S_- = \sigma_-
+//EgergyKin + EnergyPot at site i (i,i+2,i+4)
+double Energy(MPS& psi, const auto& sites, const int i) { 
 	psi.position(i);
-	
-	double energy_kin =  2 * real (4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) );
-	double energy_pot = 2 * real(-8 * 0.25 * SzCorrelation(psi,sites, "S+", "S-", i ) );
-		
-	//complex <double> energy_kin =  4 * 0.25 * ( Correlation(psi,sites, "S+", "S-", i, i+4) +
-	//		Correlation(psi, sites, "S-", "S+", i, i+4) );
-	//complex <double> energy_pot = -8 * 0.25 * ( SzCorrelation(psi,sites, "S+", "S-", i ) +
-	//		SzCorrelation(psi, sites, "S-", "S+", i ));
-	double energy = real(energy_kin + energy_pot);
-	
+	/*
+		the "strange" coefficients 4 and 8 here appeared cause we use 
+		sigma matrices in the paper and spin-1/2 in the code.
+		sigma_j = 2 * spin_matrix_j, so
+		4 comes from XX+YY term
+		8 comes from (XX+YY)*Z
+
+		coeff 0.25 appeared cause the Hamiltonian H = 1/2 * (XX+YY)(1-Z)
+		then (XX+YY) = 0.5(SpSm+SmSp), so
+		H = 0.25(SpSm+SmSp)(1-Z)
+
+	*/
+	double energy_kin = 2 * real (4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) ); 
+	double energy_pot = 2 * real(-8 * 0.25 * SzCorrelation(psi,sites, "S+", "S-", i ) );	
+	double energy = energy_kin + energy_pot;
 	return energy;
 }
 
-double Current(MPS& psi, const auto& sites, const int i) { //Current(i,i+4) + Current_z at site i (i,i+2,i+4)
-	//4 is here because 2S_+ = \sigma_+, 2S_- = \sigma_-
+//Current(i,i+4) + Current_z at site i (i,i+2,i+4)
+double q1minus(MPS& psi, const auto& sites, const int i) { 
 	psi.position(i);
-	complex <double> current_kin =  4 * 0.25 * ( Correlation(psi,sites, "S+", "S-", i, i+4) -
-			Correlation(psi, sites, "S-", "S+", i, i+4) );
-	complex <double> current_pot = -8 * 0.25 * ( SzCorrelation(psi,sites, "S+", "S-", i ) -
-			SzCorrelation(psi, sites, "S-", "S+", i ));
-	double current = real(current_kin + current_pot);
-	return current;
+	double q_kin = 2 * im(4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) );
+	double q_pot = 2 * im(-8 * 0.25 * SzCorrelation(psi,sites, "S+", "S-", i ) );	
+	double conserved_charge_minus = -(q_kin + q_pot);
+	return conserved_charge_minus;
 }
