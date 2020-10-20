@@ -612,8 +612,8 @@ int main(int argc, char *argv[]) {
 			"MaxDim", param.longval("max_bond"), "Normalize", false); // arguments for IMAGINARY time == initial temperature state
 
 	// Output . dat files = observables
-	ofstream ent, spec, eprof, sz, sz_avrg, spin_cur, spin_cur_prof,
-			energy_beta, energy_prof; //here I'm defining output
+	ofstream ent, spec, eprof, sz, sz_avrg,	
+			energy_beta, energy_prof, q1minus_prof; //here I'm defining output streams == files
 	ios_base::openmode mode;
 	mode = std::ofstream::out; //Erase previous file (if present)
 
@@ -667,20 +667,13 @@ int main(int argc, char *argv[]) {
 		energy_prof.precision(15);
 		energy_prof << "#Position=i-" << "\t<Ham_i>\t" << dot
 				<< "\t\ttime(or beta)\n";
-	}
-	//---------------------
-	dt = param.val("CurrentProf");
-	if (dt > 0) { //spin current profile
-		spin_cur_prof.open("Current_profile.dat", mode);
-		spin_cur_prof.precision(15);
-		spin_cur_prof << "#Position=i-" << "\t<Cur_i>\t" << dot << "\t\ttime\n";
-	}
-	//---------------------
-	dt = param.val("Current");
-	if (dt > 0) { //spin current throw central site
-		spin_cur.open("Current.dat", mode);
-		spin_cur.precision(15);
-		spin_cur << "#time" << "\t<Cur_dot>\t" << "\n";
+
+		//Q1minus profile is initialized simultaniously with energy profile
+		q1minus_prof.open("Q1minus_profile.dat", mode);
+                q1minus_prof.precision(15);
+                q1minus_prof << "#Position=i-" << "\t<Q1minus_i>\t" << dot
+                                << "\t\ttime(or beta)\n";
+
 	}
 	//---------------------
 
@@ -798,29 +791,22 @@ int main(int argc, char *argv[]) {
 
 				
 				energy_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
-			}
+			}	
+                        if (n % int(param.val("EnergyProf") / tau) == 0) {
+                                q1minus_prof << "\"t=" << time << "\"" << endl;
+                                for (int i = 1; i <= N - 5; i += 2) {
+                                        const double q1minus = Q1minus(psi, sites, i);
+                                        q1minus_prof << i / 2 - dot / 2 + 1 << "\t" << q1minus << "\t"
+                                                        << time << endl;
+                                }
+
+
+                                q1minus_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
+                        }
+		
+	
 		}
 
-		// ------- Current profile -------
-		if (param.val("CurrentProf") > 0) {
-			if (n % int(param.val("CurrentProf") / tau) == 0) {
-				spin_cur_prof << "\"t=" << time << "\"" << endl;
-				for (int i = 1; i <= N - 5; i += 2) {
-					const double en = Current(psi, sites, i);
-					spin_cur_prof << i / 2 - dot / 2 + 1 << "\t" << en << "\t"
-							<< time << endl;
-				}
-
-				spin_cur_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
-			}
-		}
-		// ------- Current throw the central site -------
-		if (param.val("Current") > 0) {
-			if (n % int(param.val("Current") / tau) == 0) {
-				const double cur = Current(psi, sites, dot - 2);
-				spin_cur << time << "\t" << cur << endl;
-			}
-		}
 
 		// ------- Sz profile -------
 		if (param.val("Sz") > 0 && beta_steps_max <= n) {
