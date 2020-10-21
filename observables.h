@@ -54,8 +54,8 @@ double Sz(MPS& psi, const auto& sites, const int i){ //<psi|Sz|psi> at site i
 	ket *= Sz;
 	ket *= dag(prime(psi(i), "Site")); //multipuing by bra
 	//ITensor B = ket * bra;
-	complex<double> sz = 2*eltC(ket); // 2 here is "sigma_z = 2* s_z"
-	return real(sz);
+	double sz = real(eltC(ket)); // 2 here is "sigma_z = 2* s_z"
+	return sz;
 }
 
 //< Sp_i Sm_i+4 >
