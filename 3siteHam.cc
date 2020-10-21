@@ -226,7 +226,7 @@ public:
 		if (order == 1) {
 			cout << "trotter 1 scheme" << endl;
 			if (imag(tau) < 1e-8) {
-				cout << "Temperature evolution, ancillas are not affected"
+				cout << "Temperature evolution"
 						<< endl;
 				TemperatureGates(begin, end, tau, sites, param);
 				TemperatureGates(begin + 2, end, tau, sites, param);
@@ -251,7 +251,7 @@ public:
 			//Trotter gates from arxiv.org/abs/1901.04974
 			// Eq. (38),(47)
 			if (imag(tau) < 1e-8) {
-				cout << "Temperature evolution, ancillas are not affected"
+				cout << "Temperature evolution"
 						<< endl;
 				TemperatureGates(begin0, end, 0.5 * tau, sites, param); //A
 				TemperatureGates(begin2, end, 0.5 * tau, sites, param); //B
@@ -271,18 +271,12 @@ public:
 				TemperatureGates(begin0, end, a1 * tau, sites, param); //A
 				*/
 			} else {
-				cout << "Time evolutions with Ancilla" << endl;
+				cout << "Time evolutions " << endl;
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
 				TimeGates(begin2, end, 0.5 * tau, sites, param); //B
 				TimeGates(begin4, end, tau, sites, param); 	 //C		
 				TimeGates(begin2, end, 0.5 * tau, sites, param); //B
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
-
-				AncillaGates(begin0, end, 0.5 * tau, sites, param); //A
-				AncillaGates(begin2, end, 0.5 * tau, sites, param); //B
-				AncillaGates(begin4, end, tau, sites, param); 	 //C		
-				AncillaGates(begin2, end, 0.5 * tau, sites, param); //B
-				AncillaGates(begin0, end, 0.5 * tau, sites, param); //A
 				/*
 				TimeGates(begin0, end, a1 * tau, sites, param); //A
 				TimeGates(begin2, end, b1 * tau, sites, param); //B
@@ -395,38 +389,7 @@ public:
 			gates.emplace_back(j, move(G));
 		}
 	}
-	void AncillaGates(const int begin, const int end, const complex<double> tau,
-			const SiteSet &sites, const ThreeSiteParam &param) {
-		const int step = 6;
-		const double J = param.val("J");
-		for (int j = begin; j < end - 4; j += step) {
-			cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
-					<< endl;
-			//this part act on real sites	
-			auto hh = -J * 4 * 0.25
-				* op(sites, "Sp", j + 1)
-				* op(sites, "Id", j + 3)
-				* op(sites, "Sm", j + 5);
 
-			hh += -J * 4 * 0.25 
-				* op(sites, "Sm", j + 1)
-				* op(sites, "Id", j + 3)
-				* op(sites, "Sp", j + 5);
-
-			hh += J * 8 * 0.25
-				* op(sites, "Sp", j + 1)
-				* op(sites, "Sz", j + 3)
-				* op(sites, "Sm", j + 5);
-
-			hh += J * 8 * 0.25
-				* op(sites, "Sm", j + 1) 
-				* op(sites, "Sz", j + 3) 
-				* op(sites, "Sp", j + 5);
-
-			auto G = expHermitian(hh, -tau);
-			ancilla_gates.emplace_back(j, move(G));
-		}
-	}
 	void EvolvePhysical(MPS &psi, const Args &args) {
 		for (auto &gate : gates) {
 			auto j = gate.i1;
@@ -450,29 +413,7 @@ public:
 			}
 		}
 	}
-	void EvolveAncillas(MPS &psi, const Args &args) {
-		for (auto &gate : ancilla_gates) {
-			auto j = gate.i1;
-			auto &G = gate.G;
-			SwapNextSites(psi,j+1); //swap j+1,j+2
-			SwapNextSites(psi,j+4);//Now ancilla sites are j+2,j+3,j+4
-			psi.position(j+3);
-			auto WF = psi(j + 2) * psi(j + 3) * psi(j + 4);
-			WF = G * WF;
-			WF /= norm(WF);
-			WF.noPrime();
-			{
-				auto [Uj1,Vj1] = factor(WF, { siteIndex(psi, j + 2), leftLinkIndex(psi, j + 2) }, args);
-				auto indR = commonIndex(Uj1, Vj1);
-				auto [Uj2,Vj2] = factor(Vj1, { siteIndex(psi, j + 3), indR },args);
-				psi.set(j + 2, Uj1);
-				psi.set(j + 3, Uj2);
-				psi.set(j + 4, Vj2);
-				SwapNextSites(psi,j+4);				
-				SwapNextSites(psi,j+1);
-			}
-		}
-	}
+
 	void Evolve(MPS &psi, const Args &args){
 		EvolvePhysical(psi, args);
 	//	EvolveAncillas(psi, args);
@@ -497,7 +438,6 @@ public:
 	}
 private:
 	vector<TGate> gates;
-	vector<TGate> ancilla_gates;
 };
 
 void DisconnectChains(MPS &psi, const int j) {
@@ -690,10 +630,10 @@ int main(int argc, char *argv[]) {
 	TrotterExp expH_beta_half(sites, param, 0.5 * dbeta);
 
 	
-        cout << "Trotter Gates for tau" << endl;
-        param["begin"] = 1;
+    cout << "Trotter Gates for tau" << endl;
+    param["begin"] = 1;
 	param["hL"] = 0;
-        param["hR"] = 0;
+    param["hR"] = 0;
 	TrotterExp expH(sites, param, Cplx_i * 1.0 * tau);
 
 
