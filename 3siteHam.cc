@@ -213,8 +213,6 @@ public:
 	};
 	TrotterExp(const SiteSet &sites, const ThreeSiteParam &param,
 			const complex<double> tau) {
-		//N = length(sites);			
-		//end = param.val("N");
 		initialize(sites, param, tau);
 	}
 	;
@@ -298,15 +296,11 @@ public:
 		const double J = param.val("J");
 		const double hL = param.val("hL");
 		const double hR = param.val("hR");
-	        const double TL = param.val("TL");
-                const double TR = param.val("TR");	
+	    const double TL = param.val("TL");
+        const double TR = param.val("TR");
 		double mu = 0;
 		const int dot = length(sites) / 2;
 		cout << "dot in trotter = " << dot << endl;
-		//const double hL = param.val("hL");
-		//const double hR = param.val("hR");
-		//const double TL = param.val("TL");
-		//const double TR = param.val("TR");
 		for (int j = begin; j < end - 4; j += step) {
 			if (j < dot && dot < j + step - 1) {
 				cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]"
@@ -335,12 +329,10 @@ public:
 				* op(sites, "Sz", j + 2) 
 				* op(sites, "Sp", j + 4);
                         
-                        if (j <= dot) {
-                        	mu = hL * TL;
-                        } else {
-                                mu = hR * TR;
-                        }
-                	hh += -J * mu * pow(-1, (j + 1) / 2) 
+           if (j <= dot)  mu = hL * TL;
+           else  mu = hR * TR;
+
+           hh += -J * mu * pow(-1, (j + 1) / 2)
 				* op(sites, "Sz", j)
 				* op(sites, "Id", j + 2)
 				* op(sites, "Id", j + 4);
@@ -419,22 +411,13 @@ public:
 	//	EvolveAncillas(psi, args);
 	}
 	void SwapNextSites(MPS &psi, const int j){
-		//cout << "in swap" << endl;
 		psi.position(j);
 		auto WF = psi(j) * psi(j + 1);
 		auto [U,V] = factor(WF,
 					{ siteIndex(psi, j+1), leftLinkIndex(psi, j) }, {"Truncate=", false});
 		psi.set(j, U);
 		psi.set(j + 1, V);
-		/*		
-		auto [U, D, V] = svd(WF,
-					{ siteIndex(psi, j+1), leftLinkIndex(psi, j) }, {"Truncate=", false});
-		psi.set(j, U);
-		psi.set(j + 1, D*V);
-		*/
 		psi.position(j);
-		//psi.orthogonalize();
-		//cout << "out swap" << endl;
 	}
 private:
 	vector<TGate> gates;
@@ -455,6 +438,7 @@ void DisconnectChains(MPS &psi, const int j) {
 // Time evolution e^-iHt = 1-iHt :: REMOVED
 
 //------------------------------------------------------------------
+/*
 class MyDMRGObserver: public DMRGObserver {
 	double previous_energy;
 	const double precision;
@@ -474,6 +458,7 @@ public:
 		}
 	}
 };
+*/
 
 int main(int argc, char *argv[]) {
 	LOG_DURATION("MAIN");
