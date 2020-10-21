@@ -218,7 +218,8 @@ public:
 	;
 	void initialize(const SiteSet &sites, const ThreeSiteParam &param,
 			const complex<double> tau) {
-		const int begin = param.val("begin");
+		//const int begin = param.val("begin");
+		const int begin = 1;
 		const int end = param.val("end");
 		const int order = param.val("TrotterOrder");
 		if (order == 1) {
@@ -298,11 +299,12 @@ public:
 		const double hR = param.val("hR");
 	    const double TL = param.val("TL");
         const double TR = param.val("TR");
+        const int h_half = param.val("begin");
 		double mu = 0;
 		const int dot = length(sites) / 2;
 		cout << "dot in trotter = " << dot << endl;
 		for (int j = begin; j < end - 4; j += step) {
-			if (j < dot && dot < j + step - 1) {
+			if (h_half > 5 && j < dot ) { //&& dot < j + step - 1
 				cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]"
 						<< endl;
 				continue; // here we skip part of loop and got to the next j = j+ step
