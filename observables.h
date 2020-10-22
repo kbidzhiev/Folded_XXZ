@@ -130,6 +130,15 @@ double Q1minus(MPS& psi, const auto& sites, const int i) {
 	psi.position(i);
 	double q_kin = 2 * imag(4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) );
 	double q_pot = 2 * imag(-8 * 0.25 * SzCorrelation(psi,sites, "S+", "S-", i ) );	
+	
+	//double q_kin = real(4 * 0.25 * (
+	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
+	//	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
+        //double q_pot = real(-8 * 0.25 * (
+	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
+	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
+	
+
 	double conserved_charge_minus = -(q_kin + q_pot);
 	return conserved_charge_minus;
 }
