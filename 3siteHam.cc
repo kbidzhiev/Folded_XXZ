@@ -334,14 +334,17 @@ public:
 			//* pow(-1, (j + 1 + 2) / 2)
 			//* pow(-1, (j + 1 + 4) / 2) 
 
-			hh += - mu * op(sites, "Sz", j)
+			hh += - mu * pow(-1, (j + 1) / 2) 
+				* op(sites, "Sz", j)
 				* op(sites, "Id", j + 2)
 				* op(sites, "Id", j + 4);
 				if(j == end-5){
-					hh += - mu * op(sites, "Id", j)
+					hh += - mu * pow(-1, (j + 1 + 2) / 2) 
+					* op(sites, "Id", j)
 					* op(sites, "Sz", j + 2)
 					* op(sites, "Id", j + 4);
-				hh += - mu * op(sites, "Id", j)
+				hh += - mu * pow(-1, (j + 1 + 4) / 2) 
+					* op(sites, "Id", j)
 					* op(sites, "Id", j + 2)
 					* op(sites, "Sz", j + 4);	
 			}		
