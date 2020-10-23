@@ -35,5 +35,5 @@ LIBGFLAGS=-L$(ITENSOR_LIBDIR) $(ITENSOR_LIBGFLAGS)
 
 all:  3siteHam.exe
 clean:
-	rm *.exe *.o
+	rm *.exe *.o 
 

@@ -1,7 +1,3 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
-
 // C++ code for 3-site Hamiltonian
 #include "itensor/all.h"
 #include <iostream>
@@ -303,7 +299,7 @@ public:
 		double mu = 0;
 		const int dot = length(sites) / 2;
 		cout << "dot in trotter = " << dot << endl;
-		for (int j = begin; j < end - 4; j += step) {
+		for (int j = begin; j <= end - 5; j += step) {
 			if (h_half > 5 && j < dot ) { //&& dot < j + step - 1
 				cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]"
 						<< endl;
@@ -337,19 +333,22 @@ public:
 			//* pow(-1, (j + 1) / 2)
 			//* pow(-1, (j + 1 + 2) / 2)
 			//* pow(-1, (j + 1 + 4) / 2) 
+
 			hh += - mu * op(sites, "Sz", j)
 				* op(sites, "Id", j + 2)
 				* op(sites, "Id", j + 4);
-			hh += - mu * op(sites, "Id", j)
-				* op(sites, "Sz", j + 2)
-				* op(sites, "Id", j + 4);
-			hh += - mu * op(sites, "Id", j)
-				* op(sites, "Id", j + 2)
-				* op(sites, "Sz", j + 4);			
-	
+				if(j == end-5){
+					hh += - mu * op(sites, "Id", j)
+					* op(sites, "Sz", j + 2)
+					* op(sites, "Id", j + 4);
+				hh += - mu * op(sites, "Id", j)
+					* op(sites, "Id", j + 2)
+					* op(sites, "Sz", j + 4);	
+			}		
 			auto G = expHermitian(hh, -tau);
 			gates.emplace_back(j, move(G));
-		}
+		}	
+		
 	}
 	void TimeGates(const int begin, const int end, const complex<double> tau,
 			const SiteSet &sites, const ThreeSiteParam &param) {

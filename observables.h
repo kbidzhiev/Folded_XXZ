@@ -23,9 +23,6 @@ complex<double> Correlation(MPS& psi, const itensor::BasicSiteSet<itensor::SpinH
 complex<double> SzCorrelation (MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const string op_name1, const string op_name2, const int i );
 
 //EgergyKin + EnergyPot at site i (i,i+2,i+4)
-//double Energy<itensor::BasicSiteSet<itensor::SpinHalfSite> >(itensor::MPS&, itensor::BasicSiteSet<itensor::SpinHalfSite> const&, int)
-//double Energy<itensor::BasicSiteSet<itensor::SpinHalfSite> >(itensor::MPS&, itensor::BasicSiteSet<itensor::SpinHalfSite> const&, int)
-
 
 double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
 
