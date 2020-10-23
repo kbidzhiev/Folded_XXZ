@@ -297,9 +297,9 @@ public:
 		const double J = param.val("J");
 		const double hL = param.val("hL");
 		const double hR = param.val("hR");
-	    const double TL = param.val("TL");
-        const double TR = param.val("TR");
-        const int h_half = param.val("begin");
+	    	const double TL = param.val("TL");
+		const double TR = param.val("TR");
+		const int h_half = param.val("begin");
 		double mu = 0;
 		const int dot = length(sites) / 2;
 		cout << "dot in trotter = " << dot << endl;
@@ -331,19 +331,19 @@ public:
 				* op(sites, "Sz", j + 2) 
 				* op(sites, "Sp", j + 4);
                         
-           if (j <= dot)  mu = hL * TL;
-           else  mu = hR * TR;
-
-           hh += -J * mu * pow(-1, (j + 1) / 2)
-				* op(sites, "Sz", j)
+			if (j < dot)  mu = hL*TL;
+        	        else  mu = hR*TR;
+			cout << "mu = " << mu << endl;
+			//* pow(-1, (j + 1) / 2)
+			//* pow(-1, (j + 1 + 2) / 2)
+			//* pow(-1, (j + 1 + 4) / 2) 
+			hh += - mu * op(sites, "Sz", j)
 				* op(sites, "Id", j + 2)
 				* op(sites, "Id", j + 4);
-			hh += -J * mu * pow(-1, (j + 1 + 2) / 2)
-				* op(sites, "Id", j)
+			hh += - mu * op(sites, "Id", j)
 				* op(sites, "Sz", j + 2)
 				* op(sites, "Id", j + 4);
-			hh += -J * mu * pow(-1, (j + 1 + 4) / 2) 
-				* op(sites, "Id", j)
+			hh += - mu * op(sites, "Id", j)
 				* op(sites, "Id", j + 2)
 				* op(sites, "Sz", j + 4);			
 	

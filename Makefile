@@ -29,8 +29,8 @@ LIBGFLAGS=-L$(ITENSOR_LIBDIR) $(ITENSOR_LIBGFLAGS)
 
 
 
-3siteHam.exe: 3siteHam.cc  $(ITENSOR_LIBS) $(TENSOR_HEADERS)
-	$(CCCOM) $(CCFLAGS) 3siteHam.cc  -o $@ $(LIBFLAGS)
+3siteHam.exe: 3siteHam.cc observables.cc  $(ITENSOR_LIBS) $(TENSOR_HEADERS)
+	$(CCCOM) $(CCFLAGS) 3siteHam.cc observables.cc -o $@ $(LIBFLAGS)
 
 
 all:  3siteHam.exe
