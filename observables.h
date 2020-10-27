@@ -28,3 +28,20 @@ double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sit
 
 //Current(i,i+4) + Current_z at site i (i,i+2,i+4)
 double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
+
+
+
+
+
+complex<double> KKDD(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
+complex<double> Correlations5site(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites,
+                const string op_name1,
+                const string op_name2,
+                const string op_name3,
+                const string op_name4,
+                const string op_name5,
+                const int i);
+complex<double> Q2(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
+double Q2plus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
+double Q2minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
+

@@ -109,6 +109,7 @@ class ThreeSiteParam: public Parameters {
 			operator[]("Entropy") = 0; //entanglement entropy p*log*p between left and right parts of system
 			operator[]("Eprof") = 0; // Entropy profile - parameter 0 -> nothing, dt>0 each second=integer parameter
 			operator[]("EnergyProf") = 0;
+			operator[]("Q2Prof") = 0;
 			operator[]("CurrentProf") = 0;
 			operator[]("Current") = 0;
 			operator[]("Sz") = 0;
@@ -470,10 +471,7 @@ int main(int argc, char *argv[]) {
 
 	param.PRint(cout); // Print parameters
 	cout.precision(15);
-
 	const int N = 2 * param.longval("N");
-
-
 
 	SpinHalf sites(N, { "ConserveQNs=", false }); //HILBERT_SPACE = SpinHalf
 	MPS psi;
@@ -483,7 +481,6 @@ int main(int argc, char *argv[]) {
 	const int dot = Ham.dot;
 	auto H = toMPO(Ham.ampo);
 	cout << "finish H" << endl;
-	;
 	auto energy(0);
 	psi = MPS(sites);
 	cout << "N= " << N << endl;
@@ -541,7 +538,7 @@ int main(int argc, char *argv[]) {
 
 	// Output . dat files = observables
 	ofstream ent, spec, eprof, sz, sz_avrg,	
-		 energy_beta, energy_prof, q1minus_prof; //here I'm defining output streams == files
+		 energy_beta, energy_prof, q1minus_prof, q2prof; //here I'm defining output streams == files
 	ios_base::openmode mode;
 	mode = std::ofstream::out; //Erase previous file (if present)
 
@@ -604,7 +601,15 @@ int main(int argc, char *argv[]) {
 
 	}
 	//---------------------
-
+        dt = param.val("Q2Prof");
+        if (dt > 0) { //Full entropy profile
+                q2prof.open("Q2_profile.dat", mode);
+                q2prof.precision(15);
+                q2prof << "#Position=i-" << dot << setw(16) << "\t Entropy(i)"
+                        << setw(16)
+                        << "\t Q2plus \t Q2minus \t time \t \n";
+        }
+        //---------------------
 	//////////// Trottexp expH //////////
 	cout << "Trotter Gates for beta " << endl;
 	param["begin"] = 1;
@@ -732,7 +737,20 @@ int main(int argc, char *argv[]) {
 
 
 		}
+                // ------- Energy profile -------
+                if (param.val("Q2Prof") > 0 && beta_steps_max <= n) {
+                        if (n % int(param.val("EnergyProf") / tau) == 0) {
+                                q2prof << "\"t=" << time << "\"" << endl;
+                                for (int i = 1; i <= N - 9; i += 2) {
+                                        const double q2plus = Q2plus(psi, sites, i);
+                                        const double q2minus = Q2minus(psi, sites, i);
+                                        q2prof << i / 2 - dot / 2 + 1 << "\t" << q2plus << "\t"
+                                        		<< q2minus << "\t"<< time << endl;
+                                }
 
+                                q2prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
+                        }
+		}
 
 		// ------- Sz profile -------
 		if (param.val("Sz") > 0 && beta_steps_max <= n) {
