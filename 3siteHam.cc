@@ -329,7 +329,6 @@ public:
                         
 			if (j < dot)  mu = hL*TL;
         	        else  mu = hR*TR;
-			cout << "mu = " << mu << endl;
 			//* pow(-1, (j + 1) / 2)
 			//* pow(-1, (j + 1 + 2) / 2)
 			//* pow(-1, (j + 1 + 4) / 2) 
@@ -339,7 +338,7 @@ public:
 				* op(sites, "Id", j + 2)
 				* op(sites, "Id", j + 4);
 				if(j == end-5){
-					hh += - mu * pow(-1, (j + 1 + 2) / 2) 
+				hh += - mu * pow(-1, (j + 1 + 2) / 2) 
 					* op(sites, "Id", j)
 					* op(sites, "Sz", j + 2)
 					* op(sites, "Id", j + 4);
@@ -717,7 +716,6 @@ int main(int argc, char *argv[]) {
 					energy_prof << i / 2 - dot / 2 + 1 << "\t" << en << "\t"
 							<< time << endl;
 				}
-
 				
 				energy_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 			}	
@@ -728,7 +726,6 @@ int main(int argc, char *argv[]) {
                                         q1minus_prof << i / 2 - dot / 2 + 1 << "\t" << q1minus << "\t"
                                                         << time << endl;
                                 }
-
 
                                 q1minus_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
                         }
@@ -783,6 +780,7 @@ int main(int argc, char *argv[]) {
 			psi.normalize();
 		} else if (n < beta_steps_max) {
 			cout << "Temperature evol with H_half" << endl;
+			cout << "n/beta_steps_max = " << n <<"/" << beta_steps_max << endl;
 			expH_beta_half.EvolvePhysical(psi, args0);
 			psi.orthogonalize(args);			
 			psi.normalize();
