@@ -137,7 +137,7 @@ double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sit
 	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
 	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
 
-	double conserved_charge_minus = -(q_kin + q_pot);
+	double conserved_charge_minus = -(q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
 	return conserved_charge_minus;
 }
 
