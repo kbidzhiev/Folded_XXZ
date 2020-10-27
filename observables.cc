@@ -114,7 +114,7 @@ double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& site
 
 		coeff 0.25 appeared cause the Hamiltonian H = 1/2 * (XX+YY)(1-Z)
 		then (XX+YY) = 0.5(SpSm+SmSp), so
-		H = 0.25(SpSm+SmSp)(1-Z)
+		H = 0.25(SpSm+SmSp)(1-Sz)
 
 	*/
 	double energy_kin = 2 * real (4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) ); 
@@ -123,21 +123,21 @@ double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& site
 	return energy;
 }
 
-//Current(i,i+4) + Current_z at site i (i,i+2,i+4)
+// (SxSy-SySx)/2   - (SxSzSy-SySzSx)/2
 double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) { 
 	psi.position(i);
-	//double q_kin = 2 * imag(4 * 0.25 * Correlation(psi,sites, "S+", "S-", i, i+4) );
-	//double q_pot = 2 * imag(-8 * 0.25 * SzCorrelation(psi,sites, "S+", "S-", i ) );	
+	// (SxSy-SySx)/2 = (SmSp-SpSm)/4
+	double q_kin = 2 * imag(4 * 0.25 * Correlation(psi,sites, "S-", "S+", i, i+4) );
+	double q_pot = 2 * imag(-8 * 0.25 * SzCorrelation(psi,sites, "S-", "S+", i ) );	
 	
-	double q_kin = real(4 * 0.5 * (
-		Correlation(psi,sites, "Sx", "Sy", i, i+4)-
-		Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
-        double q_pot = real(-8 * 0.5 * (
-		SzCorrelation(psi,sites, "Sx", "Sy", i )-
-		SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
-	
+	//double q_kin = real(4 * 0.5 * (
+	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
+	//	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
+        //double q_pot = real(-8 * 0.5 * (
+	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
+	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
 
-	double conserved_charge_minus = -(q_kin + q_pot)/2.;
+	double conserved_charge_minus = -(q_kin + q_pot);
 	return conserved_charge_minus;
 }
 
