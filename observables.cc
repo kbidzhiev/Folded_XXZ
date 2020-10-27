@@ -233,7 +233,9 @@ complex<double> Q2(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>&
 	complex<double> zzk1 = 0.5*16*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Id", "S+",  i));
 	complex<double> zzk2 = 0.5*16*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Sz", "S+",  i));
 	complex<double> q2 = 0.25*(kkdd + zk + zzzk - zzk1 - zzk2);
-	return q2;
+	double q2plus = -2 * real(q2);
+	double q2minus = 2 * imag(q2);
+	return {q2plus, q2minus};
 }
 
 double Q2plus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){

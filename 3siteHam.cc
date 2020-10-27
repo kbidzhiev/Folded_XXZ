@@ -717,8 +717,8 @@ int main(int argc, char *argv[]) {
 				q2prof << "\"t=" << time << "\"" << endl;
 				for (int i = 1; i <= N - 9; i += 2) {
 					const complex<double> q2 = Q2(psi, sites, i);
-					const double q2plus = -2 * real(q2);
-					const double q2minus = 2 * imag(q2);
+					const double q2plus =  real(q2);
+					const double q2minus = imag(q2);
 //					const double q2plus = Q2plus(psi, sites, i);
 //					const double q2minus = Q2minus(psi, sites, i);
 					q2prof << i / 2 - dot / 2 + 1 << "\t" << q2plus << "\t"
