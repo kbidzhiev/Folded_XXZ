@@ -168,7 +168,7 @@ complex<double> KKDD(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite
 	ket *= Sm2;
 	auto il = commonIndex(psi(i+7),psi(i+8),"Link");
 	ket *= dag(prime(prime(psi(i+8),"Site"),il));
-	complex<double> kkdd = eltC(ket); //4 is needed to convert four Spin matrices to Pauili
+	complex<double> kkdd = 0.25*16*2*eltC(ket); //4 is needed to convert four Spin matrices to Pauili
 	return kkdd;
 }
 
@@ -221,20 +221,18 @@ complex<double> Correlations5site(MPS& psi, const itensor::BasicSiteSet<itensor:
 	
 	complex<double> correlation = eltC(ket);
 	return correlation;
-
 }
-
 
 complex<double> Q2(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
 	complex<double> kkdd = KKDD(psi, sites, i);
 	psi.position(i);
-	complex<double> zk = 2*0.5*8*(Correlations5site(psi,sites, "S+", "Id", "Sz", "Id", "S-",  i));// 2comes from REAL,
-	// 0.5 from (spsm+smsp)/2 = sxsx+sysy, 
-	// 8 is 3spin to 3sigma  
-	complex<double> zzzk = 2*0.5*32*(Correlations5site(psi,sites, "S+", "Sz", "Sz", "Sz", "S-",  i));
-	complex<double> zzk1 = 2*0.5*16*(Correlations5site(psi,sites, "S+", "Sz", "Sz", "Id", "S-",  i));
-	complex<double> zzk2 = 2*0.5*16*(Correlations5site(psi,sites, "S+", "Id", "Sz", "Sz", "S-",  i));
-	complex<double> q2 = 0.25*(kkdd +zk + zzzk - zzk1 - zzk2);
+	complex<double> zk = 0.5*8*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Id", "S+",  i));// 2comes from REAL,
+	// 0.5 from (spsm+smsp)/2 = sxsx+sysy,
+	// 8 is 3spin to 3sigma
+	complex<double> zzzk = 0.5*32*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Sz", "S+",  i));
+	complex<double> zzk1 = 0.5*16*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Id", "S+",  i));
+	complex<double> zzk2 = 0.5*16*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Sz", "S+",  i));
+	complex<double> q2 = 0.25*(kkdd + zk + zzzk - zzk1 - zzk2);
 	return q2;
 }
 
