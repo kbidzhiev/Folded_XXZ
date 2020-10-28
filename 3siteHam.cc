@@ -619,8 +619,6 @@ int main(int argc, char *argv[]) {
 	param["hL"] = 0;
 	param["hR"] = 0;
 	cout << "finish H_half" << endl;
-	ThreeSiteHamiltonian Ham_time_dynamic(sites, param);
-	auto H_time_dynamic = toMPO(Ham_time_dynamic.ampo);
 
 	const int time_total = beta_steps_max + n_steps;
 	for (int n = 0; n <= time_total; ++n) {
@@ -787,12 +785,12 @@ int main(int argc, char *argv[]) {
 		}
 		cout << "max bond dim = " << maxLinkDim(psi) << endl;
 		cout << "Norm = " << real(innerC(psi, psi)) << endl;
-		cout << "Energy = " << real(innerC(psi, H_time_dynamic, psi)) << endl
+		cout << "Energy = " << real(innerC(psi, H, psi)) << endl
 				<< endl;
 	}
 
 	cout << "Final observables: \n" << "max bond dim = " << maxLinkDim(psi)
-			<< endl << "Energy = " << real(innerC(psi, H_time_dynamic, psi))
+			<< endl << "Energy = " << real(innerC(psi, H, psi))
 			<< endl << endl;
 
 	cout << "\nTime evolution complete.\n Done ! \n";
