@@ -321,7 +321,7 @@ public:
 			if (j < dot)
 				mu = hL * TL;
 			else
-				mu = hR * TR;
+				mu = hR * TR;//man this part is TR/TL fix it 
 			//* pow(-1, (j + 1) / 2)
 			//* pow(-1, (j + 1 + 2) / 2)
 			//* pow(-1, (j + 1 + 4) / 2)
