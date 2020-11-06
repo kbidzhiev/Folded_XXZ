@@ -144,8 +144,8 @@ double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sit
 complex<double> Q1(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) {
 	psi.position(i);
 	// (SxSy-SySx)/2 = (SmSp-SpSm)/4
-	double q_kin = 2 * 4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) ;
-	double q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) ;
+	complex<double> q_kin = 2 * 4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) ;
+	complex<double> q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) ;
 
 	//double q_kin = real(4 * 0.5 * (
 	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
