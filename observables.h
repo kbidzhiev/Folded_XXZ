@@ -30,6 +30,7 @@ double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sit
 double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
 
 
+complex<double> Q1(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
 
 
 

@@ -141,6 +141,25 @@ double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sit
 	return conserved_charge_minus;
 }
 
+complex<double> Q1(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) {
+	psi.position(i);
+	// (SxSy-SySx)/2 = (SmSp-SpSm)/4
+	complex<double> q_kin = 2 * 4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) ;
+	complex<double> q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) ;
+
+	//double q_kin = real(4 * 0.5 * (
+	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
+	//	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
+	//double q_pot = real(-8 * 0.5 * (
+	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
+	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
+
+	double q1_plus  = 0.5* real(q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
+	double q1_minus = -0.5*imag(q_kin + q_pot);
+
+	return {q1_plus, q1_minus};
+}
+
 // K = SpSm + SmSp,   D = SmSp - SpSm
 complex<double> KKDD(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
 	psi.position(i+2);

@@ -321,7 +321,7 @@ public:
 			if (j < dot)
 				mu = hL * TL;
 			else
-				mu = hR * TR;
+				mu = hR * TR;//man this part is TR/TL fix it 
 			//* pow(-1, (j + 1) / 2)
 			//* pow(-1, (j + 1 + 2) / 2)
 			//* pow(-1, (j + 1 + 4) / 2)
@@ -689,24 +689,21 @@ int main(int argc, char *argv[]) {
 		if (param.val("EnergyProf") > 0 && beta_steps_max <= n) {
 			if (n % int(param.val("EnergyProf") / tau) == 0) {
 				energy_prof << "\"t=" << time << "\"" << endl;
-				for (int i = 1; i <= N - 5; i += 2) {
-					const double en = Energy(psi, sites, i);
-					energy_prof << i / 2 - dot / 2 + 1 << "\t" << en << "\t"
-							<< time << endl;
-				}
-
-				energy_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
-			}
-			if (n % int(param.val("EnergyProf") / tau) == 0) {
 				q1minus_prof << "\"t=" << time << "\"" << endl;
 				for (int i = 1; i <= N - 5; i += 2) {
-					const double q1minus = Q1minus(psi, sites, i);
+					const complex<double> q1 = Q1(psi, sites, i);
+					const double en = real(q1);
+					energy_prof << i / 2 - dot / 2 + 1 << "\t" << en << "\t"
+							<< time << endl;
+					const double q1minus = imag(q1);
 					q1minus_prof << i / 2 - dot / 2 + 1 << "\t" << q1minus
 							<< "\t" << time << endl;
 				}
 
+				energy_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 				q1minus_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 			}
+
 
 		}
 		// ------- Energy profile -------
