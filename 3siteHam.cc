@@ -390,7 +390,7 @@ public:
 		}
 	}
 
-	void Evolve(MPS& dell xps psi, const Args &args) {
+	void Evolve(MPS& psi, const Args &args) {
 		EvolvePhysical(psi, args);
 		//	EvolveAncillas(psi, args);
 	}
