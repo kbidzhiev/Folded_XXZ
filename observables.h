@@ -12,7 +12,7 @@ using namespace std;
 
 double Entropy(MPS&  psi, const int i, vector<double> &sing_vals, const double r);
 // Bond Dim
-int BondDim(const MPS &psi, const int i) ;
+int BondDim(const MPS& psi, const int i) ;
 
 // < Sz_i >
 double Sz(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);

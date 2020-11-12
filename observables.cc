@@ -38,7 +38,7 @@ double Entropy(MPS&  psi, const int i, vector<double> &sing_vals, const double r
 	return SvN;
 }
 // Bond Dim
-int BondDim(const MPS &psi, const int i) {
+int BondDim(const MPS& psi, const int i) {
 	auto bond_index = rightLinkIndex(psi, i);
 	return (dim(bond_index));
 }

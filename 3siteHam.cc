@@ -364,7 +364,7 @@ public:
 		}
 	}
 
-	void EvolvePhysical(MPS &psi, const Args &args) {
+	void EvolvePhysical(MPS& psi, const Args &args) {
 		for (auto &gate : gates) {
 			auto j = gate.i1;
 			auto &G = gate.G;
@@ -390,7 +390,7 @@ public:
 		}
 	}
 
-	void Evolve(MPS &psi, const Args &args) {
+	void Evolve(MPS& dell xps psi, const Args &args) {
 		EvolvePhysical(psi, args);
 		//	EvolveAncillas(psi, args);
 	}
