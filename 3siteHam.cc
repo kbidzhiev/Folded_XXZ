@@ -699,14 +699,12 @@ int main(int argc, char *argv[]) {
 					q1minus_prof << i / 2 - dot / 2 + 1 << "\t" << q1minus
 							<< "\t" << time << endl;
 				}
-
 				energy_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 				q1minus_prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 			}
-
-
 		}
-		// ------- Energy profile -------
+
+		// ------- Q2 profile -------
 		if (param.val("Q2Prof") > 0 && beta_steps_max <= n) {
 			if (n % int(param.val("EnergyProf") / tau) == 0) {
 				q2prof << "\"t=" << time << "\"" << endl;
@@ -714,12 +712,9 @@ int main(int argc, char *argv[]) {
 					const complex<double> q2 = Q2(psi, sites, i);
 					const double q2plus =  real(q2);
 					const double q2minus = imag(q2);
-//					const double q2plus = Q2plus(psi, sites, i);
-//					const double q2minus = Q2minus(psi, sites, i);
 					q2prof << i / 2 - dot / 2 + 1 << "\t" << q2plus << "\t"
 							<< q2minus << "\t" << time << endl;
 				}
-
 				q2prof << "\n\n"; //I need this part to separate time steps in *.dat files (for gnuplot)
 			}
 		}
