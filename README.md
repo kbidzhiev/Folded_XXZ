@@ -5,8 +5,8 @@ chain with three-site interactions. It uses [ITensor](https://itensor.org/)
 to prepare a thermally biased state through imaginary-time evolution, then
 evolve it in real time with Trotter gates.
 
-The program is currently a single executable built from `3siteHam.cc` and
-`observables.cc`.
+The program is currently a single simulation executable built from a reusable
+observables library and its driver in `src/`.
 
 ## Requirements
 
@@ -106,11 +106,12 @@ convenient to plot with tools such as gnuplot.
 
 ## Code map
 
-- `3siteHam.cc`: parameters, folded three-site Hamiltonian, Trotter evolution,
+- `src/main.cc`: parameters, folded three-site Hamiltonian, Trotter evolution,
   state preparation, and output.
-- `observables.h` / `observables.cc`: entropy, magnetization, energy, and
-  conserved-charge measurement routines.
-- `profile.h`: small scoped timing utility used by `LOG_DURATION`.
+- `src/observables.cc` and `include/folded_xxz/observables.h`: entropy,
+  magnetization, energy, and conserved-charge measurement routines.
+- `include/folded_xxz/profile.h`: small scoped timing utility used by
+  `LOG_DURATION`.
 - `CMakeLists.txt`: CMake build definition and ITensor integration.
 - `Pictures/`: example energy-profile animations.
 

@@ -1,5 +1,5 @@
 #include "itensor/all.h"
-#include "observables.h"
+#include <folded_xxz/observables.h>
 
 using namespace itensor;
 using namespace std;
@@ -264,7 +264,6 @@ double Q2plus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& site
 double Q2minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){
 	return imag(Q2(psi, sites, i));
 }
-
 
 
 

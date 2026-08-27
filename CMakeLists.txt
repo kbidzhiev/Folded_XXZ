@@ -16,16 +16,23 @@ find_package(Threads REQUIRED)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
-add_executable(3siteHam
-  3siteHam.cc
-  observables.cc
+add_library(folded_xxz_observables
+  src/observables.cc
 )
 
-target_compile_features(3siteHam PRIVATE cxx_std_17)
-target_include_directories(3siteHam PRIVATE "${ITENSOR_ROOT}")
-target_link_libraries(3siteHam PRIVATE
+add_library(folded_xxz::observables ALIAS folded_xxz_observables)
+
+target_compile_features(folded_xxz_observables PUBLIC cxx_std_17)
+target_include_directories(folded_xxz_observables PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${ITENSOR_ROOT}"
+)
+target_link_libraries(folded_xxz_observables PUBLIC
   "${ITENSOR_ROOT}/lib/libitensor.a"
   Threads::Threads
   BLAS::BLAS
   LAPACK::LAPACK
 )
+
+add_executable(3siteHam src/main.cc)
+target_link_libraries(3siteHam PRIVATE folded_xxz::observables)

@@ -12,8 +12,8 @@
 #include <vector>
 #include <algorithm>
 #include <exception>
-#include "observables.h"
-#include "profile.h"
+#include <folded_xxz/observables.h>
+#include <folded_xxz/profile.h>
 //#include "time_evolution.h"
 
 using namespace itensor;
@@ -789,4 +789,3 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
