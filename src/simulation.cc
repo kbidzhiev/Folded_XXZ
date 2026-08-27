@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <map>
+#include <limits>
 #include <sstream>
 #include <complex>
 #include <cstdlib>
@@ -33,88 +34,91 @@ double char2double(char *a) {
 	return x;
 }
 
-class Parameters: public std::map<std::string, double> {
+class Parameters {
 public:
-	double val(std::string var_name) const { // .val("C") gives value for parmeter C
-		std::map<std::string, double>::const_iterator it = find(var_name);
-		if (it == end()) {
-			std::cout << "Error: Parameter " << var_name << " is not defined.\n", std::exit(
-					0);
-			return 0;
-		} else
-			return it->second;
+	double value(const std::string& name) const {
+		auto it = values_.find(name);
+		if(it == values_.end()) throw std::out_of_range("unknown parameter: " + name);
+		return it->second;
 	}
-	long longval(std::string var_name) const {
-		double v = val(var_name);
-		if (std::abs(double(std::round(v)) - v) < 1e-6) {
-			return long(std::round(v));
-		} else {
-			std::cout << "Error, parameter " << var_name << "=" << v
-					<< " is not a long" << std::endl, std::exit(0);
-			return 0;
+	int integer_value(const std::string& name) const {
+		double v = value(name);
+		const double rounded = std::round(v);
+		if(std::abs(rounded - v) > 1e-6) {
+			throw std::invalid_argument("parameter " + name + " must be an integer");
+		}
+		if(rounded < std::numeric_limits<int>::min() ||
+		   rounded > std::numeric_limits<int>::max()) {
+			throw std::out_of_range("parameter " + name + " is outside the int range");
+		}
+		return static_cast<int>(rounded);
+	}
+	void set(const std::string& name, double value) {
+		if(!contains(name)) throw std::out_of_range("unknown parameter: " + name);
+		values_.at(name) = value;
+	}
+	bool contains(const std::string& name) const { return values_.find(name) != values_.end(); }
+	void print(std::ostream& os) const {
+		for(const auto& [name, value] : values_) {
+			os << name << "=" << value << std::endl;
 		}
 	}
-	void PRint(std::ostream &o) const {
-		for (std::map<std::string, double>::const_iterator it = begin(); it != end();
-				it++) {
-			o << it->first << "=" << it->second << std::endl;
-		}
-	}
-	void ReadArguments(int argc, char *argv[]) {
+	void parse_arguments(int argc, char *argv[]) {
 		for (int n = 1; n < argc; n++) {
 			std::string var_name(argv[n]);
-			std::map<std::string, double>::const_iterator it = find(var_name);
-
-			if (it != end()) {
-				n++;
-				if (n == argc)
-					std::cerr << "Error: missing value after " << var_name << std::endl, std::exit(
-							0);
-				operator[](var_name) = char2double(argv[n]);
-			} else {
+			if(!contains(var_name)) {
 				std::cerr << "Syntax error :" << var_name << std::endl;
 				std::cout << "List of command-line parameters :";
-				PRint(std::cout);
+				print(std::cout);
 				std::exit(0);
 			}
+
+			n++;
+			if(n == argc)
+				std::cerr << "Error: missing value after " << var_name << std::endl, std::exit(0);
+			set(var_name, char2double(argv[n]));
 		}
 	}
+protected:
+	void define(const std::string& name, double value) { values_.emplace(name, value); }
+private:
+	std::map<std::string, double> values_;
 };
 
 class ThreeSiteParam: public Parameters {
 public:
 	ThreeSiteParam() {
-		operator[]("N") = 10; //Length of the chain N-n
-		operator[]("begin") = 1;
-		operator[]("end") = 10;
-		operator[]("J") = 1.0;
-		operator[]("tau") = 0.01;  //time step for the unitary evolution
-		operator[]("dbeta") = 0.01;
-		operator[]("T") = 0;  //Total (final) time
-		operator[]("TL") = 100;
-		operator[]("TR") = 5;
-		operator[]("hL") = 0; //alternating chemical potential or staggered magnetization
-		operator[]("hR") = 0;
-		operator[]("Entropy") = 0; //entanglement entropy p*log*p between left and right parts of system
-		operator[]("Eprof") = 0; // Entropy profile - parameter 0 -> nothing, dt>0 each second=integer parameter
-		operator[]("EnergyProf") = 0;
-		operator[]("Q2Prof") = 0;
-		operator[]("CurrentProf") = 0;
-		operator[]("Current") = 0;
-		operator[]("Sz") = 0;
-		operator[]("SVD_spec") = 0; //SVD spectrum
-		operator[]("max_bond") = 4000;  //maximum bond dimension
-		operator[]("trunc") = 1e-10;  //maximum truncation error
-		operator[]("trunc0") = 1e-10;
-		operator[]("energy") = 1e-10;  //convergence criterium on the energy
-		operator[]("sweeps") = 999;  //maximum number of sweeps in the DMRG
-		operator[]("TrotterOrder") = 2;
-		operator[]("antal") = 0;
-		operator[]("XXZ") = 0;
-		operator[]("PBC") = 0;
-		operator[]("beta") = 1;
-		operator[]("Energy_beta") = 1;
-		operator[]("write_wf") = 0; //0->do not write the w.-f. to disk. if dt>0 => w.-f. to disk (over)written to disk every time=dt*integer.
+		define("N", 10); //Length of the chain N-n
+		define("begin", 1);
+		define("end", 10);
+		define("J", 1.0);
+		define("tau", 0.01);  //time step for the unitary evolution
+		define("dbeta", 0.01);
+		define("T", 0);  //Total (final) time
+		define("TL", 100);
+		define("TR", 5);
+		define("hL", 0); //alternating chemical potential or staggered magnetization
+		define("hR", 0);
+		define("Entropy", 0); //entanglement entropy p*log*p between left and right parts of system
+		define("Eprof", 0); // Entropy profile - parameter 0 -> nothing, dt>0 each second=integer parameter
+		define("EnergyProf", 0);
+		define("Q2Prof", 0);
+		define("CurrentProf", 0);
+		define("Current", 0);
+		define("Sz", 0);
+		define("SVD_spec", 0); //SVD spectrum
+		define("max_bond", 4000);  //maximum bond dimension
+		define("trunc", 1e-10);  //maximum truncation error
+		define("trunc0", 1e-10);
+		define("energy", 1e-10);  //convergence criterium on the energy
+		define("sweeps", 999);  //maximum number of sweeps in the DMRG
+		define("TrotterOrder", 2);
+		define("antal", 0);
+		define("XXZ", 0);
+		define("PBC", 0);
+		define("beta", 1);
+		define("Energy_beta", 1);
+		define("write_wf", 0); //0->do not write the w.-f. to disk. if dt>0 => w.-f. to disk (over)written to disk every time=dt*integer.
 	}
 };
 
@@ -132,12 +136,12 @@ public:
 private:
 	int N;
 	void init(const ThreeSiteParam &param) {    //.init (param)
-		const double J = param.val("J");
-		const double n = param.val("begin");
-		const double hL = param.val("hL");
-		const double hR = param.val("hR");
-		const double TL = param.val("TL");
-		const double TR = param.val("TR");
+		const double J = param.value("J");
+		const double n = param.value("begin");
+		const double hL = param.value("hL");
+		const double hR = param.value("hR");
+		const double TL = param.value("TL");
+		const double TR = param.value("TR");
 		for (int j = n; j <= N - 4; j += 2) {
 			// Coefficients convert spin-1/2 operators to Pauli-matrix conventions.
 			ampo += J * 4 * 0.25, "S+", j, "S-", j + 4; // 0.5 (SpSm+ SmSp) = SxSx + SySy
@@ -155,7 +159,7 @@ private:
 			ampo += -J * (mu) * std::pow(-1, (j + 1) / 2), "Sz", j;
 		}
 		std::cout << "H = 3site is construcnted" << std::endl;
-		if (param.val("PBC")) {
+		if (param.value("PBC")) {
 			// This part realizes Periodic Boundary Condition (PBC)
 			// term (N-1,N,1)
 			ampo += J * 4 * 0.25, "S+", N - 3, "S-", 1;
@@ -195,8 +199,8 @@ public:
 	void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
 			const std::complex<double> tau) {
 		const int begin = 1;
-		const int end = param.val("end");
-		const int order = param.val("TrotterOrder");
+		const int end = param.value("end");
+		const int order = param.value("TrotterOrder");
 		if (order == 1) {
 			std::cout << "trotter 1 scheme" << std::endl;
 			if (std::imag(tau) < 1e-8) {
@@ -236,12 +240,12 @@ public:
 			const std::complex<double> tau, const itensor::SiteSet &sites,
 			const ThreeSiteParam &param) {
 		const int step = 6;
-		const double J = param.val("J");
-		const double hL = param.val("hL");
-		const double hR = param.val("hR");
-		const double TL = param.val("TL");
-		const double TR = param.val("TR");
-		const int h_half = param.val("begin");
+		const double J = param.value("J");
+		const double hL = param.value("hL");
+		const double hR = param.value("hR");
+		const double TL = param.value("TL");
+		const double TR = param.value("TR");
+		const int h_half = param.value("begin");
 		double mu = 0;
 		const int dot = itensor::length(sites) / 2;
 		std::cout << "dot in trotter = " << dot << std::endl;
@@ -286,7 +290,7 @@ public:
 	void TimeGates(const int begin, const int end, const std::complex<double> tau,
 			const itensor::SiteSet &sites, const ThreeSiteParam &param) {
 		const int step = 6;
-		const double J = param.val("J");
+		const double J = param.value("J");
 		for (int j = begin; j < end - 4; j += step) {
 			std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< std::endl;
@@ -364,11 +368,11 @@ void DisconnectChains(itensor::MPS &psi, const int j) {
 int run_simulation(int argc, char *argv[]) {
 	LOG_DURATION("MAIN");
 	ThreeSiteParam param;
-	param.ReadArguments(argc, argv); //Now param contains the parameters, default values or those provided on the command-line
+	param.parse_arguments(argc, argv); //Now param contains the parameters, default values or those provided on the command-line
 
-	param.PRint(std::cout); // Print parameters
+	param.print(std::cout); // Print parameters
 	std::cout.precision(15);
-	const int N = 2 * param.longval("N");
+	const int N = 2 * param.integer_value("N");
 
 	itensor::SpinHalf sites(N, { "ConserveQNs=", false }); //HILBERT_SPACE = itensor::SpinHalf
 	itensor::MPS psi;
@@ -418,13 +422,13 @@ int run_simulation(int argc, char *argv[]) {
 	std::cout << "2. Initial energy=" << energy << " .Norm = " << itensor::inner(psi, psi)
 			<< std::endl;
 
-	double tau = param.val("tau");
+	double tau = param.value("tau");
 
-	auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.val("trunc"),
-			"MaxDim", param.longval("max_bond"), "Normalize", false);// arguments for time dynamics
+	auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.value("trunc"),
+			"MaxDim", param.integer_value("max_bond"), "Normalize", false);// arguments for time dynamics
 
-	auto args0 = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.val("trunc0"),
-			"MaxDim", param.longval("max_bond"), "Normalize", false); // arguments for IMAGINARY time == initial temperature state
+	auto args0 = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.value("trunc0"),
+			"MaxDim", param.integer_value("max_bond"), "Normalize", false); // arguments for IMAGINARY time == initial temperature state
 
 	// Output files for enabled observables.
 	std::ofstream ent, spec, eprof, sz, sz_avrg, energy_beta, energy_prof,
@@ -432,25 +436,25 @@ int run_simulation(int argc, char *argv[]) {
 	std::ios_base::openmode mode;
 	mode = std::ofstream::out; //Erase previous file (if present)
 
-	double dt = param.val("Entropy");
+	double dt = param.value("Entropy");
 	if (dt != 0) { //Entropy in the center of the chain
 		ent.open("Entropy_center.dat", mode);
 		ent.precision(15);
 		ent << "#time \t Entropy(dot) \t BondDim(dot) \t MaxBondDim\n";
 	}
-	dt = param.val("SVD_spec");
+	dt = param.value("SVD_spec");
 	if (dt > 0) { //SVD Spectrum on central bond
 		spec.open("SVD_spec.dat", mode);
 		spec.precision(15);
 		spec << "#Position=" << dot << "\t<SVD_spectrum>\t\ttime\n";
 	}
-	dt = param.val("Energy_beta");
+	dt = param.value("Energy_beta");
 	if (dt > 0) { // total Energy vs beta. plus std::max bond dim at the 3rd column
 		energy_beta.open("Energy_beta.dat", mode);
 		energy_beta.precision(15);
 		energy_beta << "beta \t Energy \n";
 	}
-	dt = param.val("Eprof");
+	dt = param.value("Eprof");
 	if (dt > 0) { //Full entropy profile
 		eprof.open("Entropy_profile.dat", mode);
 		eprof.precision(15);
@@ -458,7 +462,7 @@ int run_simulation(int argc, char *argv[]) {
 				<< std::setw(16)
 				<< "\t Entropy_sqrt \t Entropy_state1 \t time \t\t Bond.Dim(i)\n";
 	}
-	dt = param.val("Sz");
+	dt = param.value("Sz");
 	if (dt > 0) { //Full magnetization profile
 		sz.open("Sz_profile.dat", mode);
 		sz.precision(15);
@@ -471,7 +475,7 @@ int run_simulation(int argc, char *argv[]) {
 				<< "\t\ttime\n";
 
 	}
-	dt = param.val("EnergyProf");
+	dt = param.value("EnergyProf");
 	if (dt > 0) { //Energy profile
 		energy_prof.open("Energy_profile.dat", mode);
 		energy_prof.precision(15);
@@ -485,7 +489,7 @@ int run_simulation(int argc, char *argv[]) {
 				<< "\t\ttime(or beta)\n";
 
 	}
-	dt = param.val("Q2Prof");
+	dt = param.value("Q2Prof");
 	if (dt > 0) { //Full entropy profile
 		q2prof.open("Q2_profile.dat", mode);
 		q2prof.precision(15);
@@ -493,37 +497,37 @@ int run_simulation(int argc, char *argv[]) {
 				<< std::setw(16) << "\t Q2plus \t Q2minus \t time \t \n";
 	}
 	std::cout << "Trotter Gates for beta " << std::endl;
-	param["begin"] = 1;
-	param["end"] = N;
-	const double dbeta = param["dbeta"];
+	param.set("begin", 1);
+	param.set("end", N);
+	const double dbeta = param.value("dbeta");
 	TrotterExp expH_beta(sites, param, 0.5 * dbeta);
 
 	std::cout << "Trotter Gates Half for beta " << std::endl;
-	param["begin"] = dot + 1;
+	param.set("begin", dot + 1);
 	TrotterExp expH_beta_half(sites, param, 0.5 * dbeta);
 
 	std::cout << "Trotter Gates for tau" << std::endl;
-	param["begin"] = 1;
-	param["hL"] = 0;
-	param["hR"] = 0;
+	param.set("begin", 1);
+	param.set("hL", 0);
+	param.set("hR", 0);
 	TrotterExp expH(sites, param, itensor::Cplx_i * 1.0 * tau);
 
 	// Prepare the biased thermal state.
-	const double TL = param.val("TL");
-	const double TR = param.val("TR");
+	const double TL = param.value("TL");
+	const double TR = param.value("TR");
 	const double beta_min = std::min(1. / TL, 1. / TR);
 	const double beta_max = std::max(1. / TL, 1. / TR);
-	const int beta_steps_min = beta_min / param.val("dbeta");
-	const int beta_steps_max = beta_max / param.val("dbeta");
-	const double n_steps = param.val("T") / param.val("tau");
-	param["begin"] = 1;
-	param["hL"] = 0;
-	param["hR"] = 0;
+	const int beta_steps_min = beta_min / param.value("dbeta");
+	const int beta_steps_max = beta_max / param.value("dbeta");
+	const double n_steps = param.value("T") / param.value("tau");
+	param.set("begin", 1);
+	param.set("hL", 0);
+	param.set("hR", 0);
 	std::cout << "finish H_half" << std::endl;
 
 	const int time_total = beta_steps_max + n_steps;
 	for (int n = 0; n <= time_total; ++n) {
-		double time = (n - beta_steps_max) * tau; //+param.val("time_shift");
+		double time = (n - beta_steps_max) * tau; //+param.value("time_shift");
 
 		if (n < beta_steps_max) {
 			time = n * dbeta;
@@ -536,13 +540,13 @@ int run_simulation(int argc, char *argv[]) {
 		std::cout.flush();
 		std::vector<double> Myspec; //std::vector which will be the SVD spectrum
 
-		if (param.val("Entropy") != 0) {
+		if (param.value("Entropy") != 0) {
 			double entr = Entropy(psi, dot, Myspec, 1);
 			ent << time << "\t" << std::setw(16) << std::setfill('0') << entr << "\t"
 					<< BondDim(psi, dot) << "\t" << itensor::maxLinkDim(psi) << std::endl;
 
-			if (param.val("SVD_spec") > 0) {
-				if (n % int(param.val("SVD_spec") / tau) == 0) {
+			if (param.value("SVD_spec") > 0) {
+				if (n % int(param.value("SVD_spec") / tau) == 0) {
 					spec << "\"t=" << time << "\"" << std::endl;
 					int si = Myspec.size();
 					for (int i = 0; i < si; i++) {
@@ -555,8 +559,8 @@ int run_simulation(int argc, char *argv[]) {
 			}
 		}
 
-		if (param.val("Eprof") > 0)
-			if (n % int(param.val("Eprof") / tau) == 0) {
+		if (param.value("Eprof") > 0)
+			if (n % int(param.value("Eprof") / tau) == 0) {
 				eprof << "\"t=" << time << "\"" << std::endl;
 				for (int i = 1; i < N; i++) {
 					double entr_std = Entropy(psi, i, Myspec, 1); // p log p
@@ -568,7 +572,7 @@ int run_simulation(int argc, char *argv[]) {
 					eprof << "\n\n"; //I need this part to separate time steps in gnuplot
 			}
 
-		if (param.val("Energy_beta") > 0) {
+		if (param.value("Energy_beta") > 0) {
 			double en = 0;
 			double counter = 0;
 			int shift = (N / 4) % 2 == 0 ? N / 4 : N / 4 + 1;
@@ -582,8 +586,8 @@ int run_simulation(int argc, char *argv[]) {
 					<< std::real(itensor::innerC(psi, H, psi)) / std::real(itensor::innerC(psi, psi))
 					<< "\t" << en << "\t" << itensor::maxLinkDim(psi) << std::endl;
 		}
-		if (param.val("EnergyProf") > 0 && beta_steps_max <= n) {
-			if (n % int(param.val("EnergyProf") / tau) == 0) {
+		if (param.value("EnergyProf") > 0 && beta_steps_max <= n) {
+			if (n % int(param.value("EnergyProf") / tau) == 0) {
 				energy_prof << "\"t=" << time << "\"" << std::endl;
 				q1minus_prof << "\"t=" << time << "\"" << std::endl;
 				for (int i = 1; i <= N - 5; i += 2) {
@@ -600,8 +604,8 @@ int run_simulation(int argc, char *argv[]) {
 			}
 		}
 
-		if (param.val("Q2Prof") > 0 && beta_steps_max <= n) {
-			if (n % int(param.val("EnergyProf") / tau) == 0) {
+		if (param.value("Q2Prof") > 0 && beta_steps_max <= n) {
+			if (n % int(param.value("EnergyProf") / tau) == 0) {
 				q2prof << "\"t=" << time << "\"" << std::endl;
 				for (int i = 1; i <= N - 9; i += 2) {
 					const std::complex<double> q2 = Q2(psi, sites, i);
@@ -614,8 +618,8 @@ int run_simulation(int argc, char *argv[]) {
 			}
 		}
 
-		if (param.val("Sz") > 0 && beta_steps_max <= n) {
-			if (n % int(param.val("Sz") / tau) == 0) {
+		if (param.value("Sz") > 0 && beta_steps_max <= n) {
+			if (n % int(param.value("Sz") / tau) == 0) {
 				sz << "\"t=" << time << "\"" << std::endl;
 				double sz_tot = 0, sz_left = 0, sz_right = 0, sz_dot = 0;
 				double sz_odd = 0;
@@ -681,4 +685,3 @@ int run_simulation(int argc, char *argv[]) {
 
 	return 0;
 }
-
