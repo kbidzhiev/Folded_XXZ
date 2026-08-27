@@ -16,7 +16,7 @@
 #include <folded_xxz/profile.h>
 
 template<class T>
-inline std::string to_string(const T &t, unsigned int precision = 0) {
+std::string to_string(const T &t, unsigned int precision = 0) {
 	std::stringstream ss;
 	if (precision > 0)
 		ss.precision(precision);
