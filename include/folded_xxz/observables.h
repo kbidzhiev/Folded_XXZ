@@ -5,44 +5,34 @@
 #include <string>
 #include <complex>
 
-using namespace itensor;
-using namespace std;
-
-
-
-double Entropy(MPS&  psi, const int i, vector<double> &sing_vals, const double r);
+double Entropy(itensor::MPS& psi, int i, std::vector<double>& sing_vals, double r);
 // Bond Dim
-int BondDim(const MPS& psi, const int i) ;
+int BondDim(const itensor::MPS& psi, int i);
 
 // < Sz_i >
-double Sz(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
+double Sz(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
 
 //< Sp_i Sm_i+4 >
-complex<double> Correlation(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const string op_name1, const string op_name2, const int i, const int j);
+std::complex<double> Correlation(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const std::string& op_name1, const std::string& op_name2, int i, int j);
 
-complex<double> SzCorrelation (MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const string op_name1, const string op_name2, const int i );
+std::complex<double> SzCorrelation(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const std::string& op_name1, const std::string& op_name2, int i);
 
 //EgergyKin + EnergyPot at site i (i,i+2,i+4)
 
-double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
+double Energy(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
 
 //Current(i,i+4) + Current_z at site i (i,i+2,i+4)
-double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
+double Q1minus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
 
-
-complex<double> Q1(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) ;
-
-
-
-complex<double> KKDD(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
-complex<double> Correlations5site(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites,
-                const string op_name1,
-                const string op_name2,
-                const string op_name3,
-                const string op_name4,
-                const string op_name5,
-                const int i);
-complex<double> Q2(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
-double Q2plus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
-double Q2minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i);
-
+std::complex<double> Q1(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
+std::complex<double> KKDD(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
+std::complex<double> Correlations5site(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites,
+                                       const std::string& op_name1,
+                                       const std::string& op_name2,
+                                       const std::string& op_name3,
+                                       const std::string& op_name4,
+                                       const std::string& op_name5,
+                                       int i);
+std::complex<double> Q2(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
+double Q2plus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);
+double Q2minus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, int i);

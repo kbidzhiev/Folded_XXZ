@@ -1,25 +1,23 @@
 #include "itensor/all.h"
 #include <folded_xxz/observables.h>
 
-using namespace itensor;
-using namespace std;
 
 
 
-double Entropy(MPS&  psi, const int i, vector<double> &sing_vals, const double r){ //returns the von Neumann entropy on some bond (i,i+1)
+double Entropy(itensor::MPS&  psi, const int i, std::vector<double> &sing_vals, const double r){ //returns the von Neumann entropy on some bond (i,i+1)
 	//index linking j to j+1
-	auto bond_index = rightLinkIndex(psi, i); //=commonIndex(psi.A(i),psi.A(i+1),Link);
-	int bond_dim = dim(bond_index);
+	auto bond_index = itensor::rightLinkIndex(psi, i); //=itensor::commonIndex(psi.A(i),psi.A(i+1),Link);
+	int bond_dim = itensor::dim(bond_index);
 	psi.position(i);
-	ITensor wf = psi(i) * psi(i + 1);
+	itensor::ITensor wf = psi(i) * psi(i + 1);
 	auto U = psi(i);
-	ITensor S, V;
+	itensor::ITensor S, V;
 	//Remark: We know that the rank of wf is at most bond_dim, so we specify
 	//this value to the SVD routine, in order to avoid many spurious small singular values (like ~ 1e-30)
 	//which should in fact be exaclty zero.
-	auto spectrum = svd(wf, U, S, V, { "MaxDim", bond_dim }); // Todo: we should use min(bond_dim, bond_dim_left*2, bond_dim_right*2)
-	Real SvN = 0.;
-	Real sum = 0;
+	auto spectrum = itensor::svd(wf, U, S, V, { "MaxDim", bond_dim }); // Todo: we should use min(bond_dim, bond_dim_left*2, bond_dim_right*2)
+	itensor::Real SvN = 0.;
+	itensor::Real sum = 0;
 	//cout<<"\tSingular value decomp.:"<<endl;
 	//cout<<"\t\tdim="<<spectrum.numEigsKept()<<endl;
 	sing_vals.resize(spectrum.numEigsKept());
@@ -31,79 +29,79 @@ double Entropy(MPS&  psi, const int i, vector<double> &sing_vals, const double r
 			sing_vals[j] = p;
 			j++;
 			sum += p;
-			SvN += -pow(p, r) * r * log(p);
+			SvN += -std::pow(p, r) * r * std::log(p);
 		}
 	}
 	//cout<<"Tr(probabilities) at site(" << i << ") = "<< sum << endl;
 	return SvN;
 }
 // Bond Dim
-int BondDim(const MPS& psi, const int i) {
-	auto bond_index = rightLinkIndex(psi, i);
-	return (dim(bond_index));
+int BondDim(const itensor::MPS& psi, const int i) {
+	auto bond_index = itensor::rightLinkIndex(psi, i);
+	return (itensor::dim(bond_index));
 }
 
 // < Sz_i >
-double Sz(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){ //<psi|Sz|psi> at site i
+double Sz(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){ //<psi|Sz|psi> at site i
 	psi.position(i);
-	ITensor ket = psi(i); // read only access
-	//ITensor bra = dag(prime(ket, "Site"));
-	auto Sz = op(sites,"Sz", i);
+	itensor::ITensor ket = psi(i); // read only access
+	//itensor::ITensor bra = itensor::dag(itensor::prime(ket, "Site"));
+	auto Sz = itensor::op(sites,"Sz", i);
 	ket *= Sz;
-	ket *= dag(prime(psi(i), "Site")); //multipuing by bra
-	//ITensor B = ket * bra;
-	double sz = real(eltC(ket)); // 2 here is "sigma_z = 2* s_z"
+	ket *= itensor::dag(itensor::prime(psi(i), "Site")); //multipuing by bra
+	//itensor::ITensor B = ket * bra;
+	double sz = std::real(itensor::eltC(ket)); // 2 here is "sigma_z = 2* s_z"
 	return sz;
 }
 
 //< Sp_i Sm_i+4 >
-complex<double> Correlation(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const string op_name1, const string op_name2, const int i, const int j) {	
-	ITensor ket = psi(i);
-	auto Sp = op(sites, op_name1, i);
-	auto Sm = op(sites, op_name2, j);
+std::complex<double> Correlation(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const std::string& op_name1, const std::string& op_name2, const int i, const int j) {
+	itensor::ITensor ket = psi(i);
+	auto Sp = itensor::op(sites, op_name1, i);
+	auto Sm = itensor::op(sites, op_name2, j);
 	ket *= Sp;
-	auto ir = commonIndex(psi(i),psi(i+1),"Link");
-	ket *= dag(prime(prime(psi(i), "Site"), ir));
+	auto ir = itensor::commonIndex(psi(i),psi(i+1),"Link");
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
 	for(int k = i + 1; k < j; ++k){
 		ket *= psi(k);
-		auto right = commonIndex(psi(k),psi(k+1),"Link");
-		auto left  = commonIndex(psi(k-1),psi(k),"Link");
-		ket *= dag(prime(prime(psi(k), right), left));
+		auto right = itensor::commonIndex(psi(k),psi(k+1),"Link");
+		auto left  = itensor::commonIndex(psi(k-1),psi(k),"Link");
+		ket *= itensor::dag(itensor::prime(itensor::prime(psi(k), right), left));
 	}
 	ket *= psi(j);
 	ket *= Sm;
-	auto il = commonIndex(psi(j),psi(j-1),"Link");
-	ket *= dag(prime(prime(psi(j),"Site"),il));
-	complex<double> correlation = eltC(ket);
+	auto il = itensor::commonIndex(psi(j),psi(j-1),"Link");
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(j),"Site"),il));
+	std::complex<double> correlation = itensor::eltC(ket);
 	return correlation;
 }
 
-complex<double> SzCorrelation (MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const string op_name1, const string op_name2, const int i ) {//< Sp_i Sz_i+2 Sm_i+4|> 
+std::complex<double> SzCorrelation (itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const std::string& op_name1, const std::string& op_name2, const int i ) {//< Sp_i Sz_i+2 Sm_i+4|>
 	// (i,i+1) (i+2,i+3) (i+4,i+5)
-	ITensor ket = psi(i);
-	auto Sp = op(sites,op_name1, i);
-	auto Sm = op(sites,op_name2, i+4);
-	auto Sz = op(sites,"Sz", i+2);
+	itensor::ITensor ket = psi(i);
+	auto Sp = itensor::op(sites,op_name1, i);
+	auto Sm = itensor::op(sites,op_name2, i+4);
+	auto Sz = itensor::op(sites,"Sz", i+2);
 	ket *= Sp;
-	auto ir = commonIndex(psi(i),psi(i+1),"Link"); // this link exist
-	ket *= dag(prime(prime(psi(i), "Site"), ir));
+	auto ir = itensor::commonIndex(psi(i),psi(i+1),"Link"); // this link exist
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
 	ket *= psi(i+1);
-	ket *= dag(prime(psi(i+1),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+1),"Link"));
 	ket *= psi(i+2);
 	ket *= Sz;
-	ket *= dag(prime(prime(psi(i+2),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+2),"Site"),"Link"));
 	ket *= psi(i+3);
-	ket *= dag(prime(psi(i+3),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+3),"Link"));
 	ket *= psi(i+4);
 	ket *= Sm;
-	auto il = commonIndex(psi(i+4),psi(i+3),"Link");
-	ket *= dag(prime(prime(psi(i+4),"Site"),il));
-	complex<double> correlation = eltC(ket);
+	auto il = itensor::commonIndex(psi(i+4),psi(i+3),"Link");
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+4),"Site"),il));
+	std::complex<double> correlation = itensor::eltC(ket);
 	return correlation;
 }
 
 //EgergyKin + EnergyPot at site i (i,i+2,i+4)
-double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) { 
+double Energy(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
 	psi.position(i);
 	/*
 	   the "strange" coefficients 4 and 8 here appeared cause we use 
@@ -117,23 +115,23 @@ double Energy(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& site
 	   H = 0.25(SpSm+SmSp)(1-Sz)
 
 	 */
-	double energy_kin = 2 * real (4 * 0.5 * Correlation(psi,sites, "S+", "S-", i, i+4) ); 
-	double energy_pot = 2 * real(-8 * 0.5 * SzCorrelation(psi,sites, "S+", "S-", i ) );	
+	double energy_kin = 2 * std::real (4 * 0.5 * Correlation(psi,sites, "S+", "S-", i, i+4) );
+	double energy_pot = 2 * std::real(-8 * 0.5 * SzCorrelation(psi,sites, "S+", "S-", i ) );
 	double energy = 0.5*(energy_kin + energy_pot);
 	return energy;
 }
 
 // (SxSy-SySx)/2   - (SxSzSy-SySzSx)/2
-double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) { 
+double Q1minus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
 	psi.position(i);
 	// (SxSy-SySx)/2 = (SmSp-SpSm)/4
-	double q_kin = 2 * imag(4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) );
-	double q_pot = 2 * imag(-8 * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) );	
+	double q_kin = 2 * std::imag(4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) );
+	double q_pot = 2 * std::imag(-8 * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) );
 
-	//double q_kin = real(4 * 0.5 * (
+	//double q_kin = std::real(4 * 0.5 * (
 	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
 	//	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
-	//double q_pot = real(-8 * 0.5 * (
+	//double q_pot = std::real(-8 * 0.5 * (
 	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
 	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
 
@@ -141,129 +139,126 @@ double Q1minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sit
 	return conserved_charge_minus;
 }
 
-complex<double> Q1(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) {
+std::complex<double> Q1(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> & sites, const int i) {
 	psi.position(i);
 	// (SxSy-SySx)/2 = (SmSp-SpSm)/4
-	complex<double> q_kin = 2 * 4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) ;
-	complex<double> q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) ;
+	std::complex<double> q_kin = 2 * 4 * 0.5 * Correlation(psi,sites, "S-", "S+", i, i+4) ;
+	std::complex<double> q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi,sites, "S-", "S+", i ) ;
 
-	//double q_kin = real(4 * 0.5 * (
+	//double q_kin = std::real(4 * 0.5 * (
 	//	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
 	//	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
-	//double q_pot = real(-8 * 0.5 * (
+	//double q_pot = std::real(-8 * 0.5 * (
 	//	SzCorrelation(psi,sites, "Sx", "Sy", i )-
 	//	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
 
-	double q1_plus  = 0.5* real(q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
-	double q1_minus = -0.5*imag(q_kin + q_pot);
+	double q1_plus  = 0.5* std::real(q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
+	double q1_minus = -0.5*std::imag(q_kin + q_pot);
 
 	return {q1_plus, q1_minus};
 }
 
 // K = SpSm + SmSp,   D = SmSp - SpSm
-complex<double> KKDD(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
+std::complex<double> KKDD(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
 	psi.position(i+2);
-	ITensor ket = psi(i+2);
-	auto Sp1 = op(sites,"S-", i+2);	//i+1 on the physical sites
-	auto Sp2 = op(sites,"S-", i+4);	//i+2
-	auto Sm1 = op(sites,"S+", i+6); //i+3
-	auto Sm2 = op(sites,"S+", i+8); //i+4
+	itensor::ITensor ket = psi(i+2);
+	auto Sp1 = itensor::op(sites,"S-", i+2);	//i+1 on the physical sites
+	auto Sp2 = itensor::op(sites,"S-", i+4);	//i+2
+	auto Sm1 = itensor::op(sites,"S+", i+6); //i+3
+	auto Sm2 = itensor::op(sites,"S+", i+8); //i+4
 	ket *= Sp1;
-	auto ir = commonIndex(psi(i+2),psi(i+3),"Link"); // this link exist
-	ket *= dag(prime(prime(psi(i+2), "Site"), ir));
+	auto ir = itensor::commonIndex(psi(i+2),psi(i+3),"Link"); // this link exist
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+2), "Site"), ir));
 	ket *= psi(i+3);
-	ket *= dag(prime(psi(i+3),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+3),"Link"));
 	ket *= psi(i+4);
 	ket *= Sp2;
-	ket *= dag(prime(prime(psi(i+4),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+4),"Site"),"Link"));
 	ket *= psi(i+5);
-	ket *= dag(prime(psi(i+5),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+5),"Link"));
 	ket *= psi(i+6);
 	ket *= Sm1;
-	ket *= dag(prime(prime(psi(i+6),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+6),"Site"),"Link"));
 	ket *= psi(i+7);
-	ket *= dag(prime(psi(i+7),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+7),"Link"));
 	ket *= psi(i+8);
 	ket *= Sm2;
-	auto il = commonIndex(psi(i+7),psi(i+8),"Link");
-	ket *= dag(prime(prime(psi(i+8),"Site"),il));
-	complex<double> kkdd = 0.25*16*2*eltC(ket); //4 is needed to convert four Spin matrices to Pauili
+	auto il = itensor::commonIndex(psi(i+7),psi(i+8),"Link");
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+8),"Site"),il));
+	std::complex<double> kkdd = 0.25*16*2*itensor::eltC(ket); //4 is needed to convert four Spin matrices to Pauili
 	return kkdd;
 }
 
-complex<double> Correlations5site(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites,
-		const string op_name1,
-		const string op_name2,
-		const string op_name3,
-		const string op_name4,
-		const string op_name5,
+std::complex<double> Correlations5site(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites,
+		const std::string& op_name1,
+		const std::string& op_name2,
+		const std::string& op_name3,
+		const std::string& op_name4,
+		const std::string& op_name5,
 		const int i){
-	auto Op0 = op(sites, op_name1, i);
-	auto Op2 = op(sites, op_name2, i+2); //i+1 on the physical sites
-	auto Op4 = op(sites, op_name3, i+4); //i+2
-	auto Op6 = op(sites, op_name4, i+6); //i+3
-	auto Op8 = op(sites, op_name5, i+8); //i+4
+	auto Op0 = itensor::op(sites, op_name1, i);
+	auto Op2 = itensor::op(sites, op_name2, i+2); //i+1 on the physical sites
+	auto Op4 = itensor::op(sites, op_name3, i+4); //i+2
+	auto Op6 = itensor::op(sites, op_name4, i+6); //i+3
+	auto Op8 = itensor::op(sites, op_name5, i+8); //i+4
 	
-	ITensor ket = psi(i);	
+	itensor::ITensor ket = psi(i);
 	ket *= Op0;
-	auto ir = commonIndex(psi(i),psi(i+1),"Link"); // this link exist
-	ket *= dag(prime(prime(psi(i), "Site"), ir));
+	auto ir = itensor::commonIndex(psi(i),psi(i+1),"Link"); // this link exist
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
 	
 	ket *= psi(i+1);
-	ket *= dag(prime(psi(i+1),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+1),"Link"));
 	
 	ket *= psi(i+2);
 	ket *= Op2;
-	ket *= dag(prime(prime(psi(i+2),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+2),"Site"),"Link"));
 	
 	ket *= psi(i+3);
-	ket *= dag(prime(psi(i+3),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+3),"Link"));
 	
 	ket *= psi(i+4);
 	ket *= Op4;
-	ket *= dag(prime(prime(psi(i+4),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+4),"Site"),"Link"));
 	
 	ket *= psi(i+5);
-	ket *= dag(prime(psi(i+5),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+5),"Link"));
 	
 	ket *= psi(i+6);
 	ket *= Op6;
-	ket *= dag(prime(prime(psi(i+6),"Site"),"Link"));
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+6),"Site"),"Link"));
 	
 	ket *= psi(i+7);
-	ket *= dag(prime(psi(i+7),"Link"));
+	ket *= itensor::dag(itensor::prime(psi(i+7),"Link"));
 	
 	ket *= psi(i+8);
 	ket *= Op8;
-	auto il = commonIndex(psi(i+7),psi(i+8),"Link");
-	ket *= dag(prime(prime(psi(i+8),"Site"),il));
+	auto il = itensor::commonIndex(psi(i+7),psi(i+8),"Link");
+	ket *= itensor::dag(itensor::prime(itensor::prime(psi(i+8),"Site"),il));
 	
-	complex<double> correlation = eltC(ket);
+	std::complex<double> correlation = itensor::eltC(ket);
 	return correlation;
 }
 
-complex<double> Q2(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
-	complex<double> kkdd = KKDD(psi, sites, i);
+std::complex<double> Q2(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i) {
+	std::complex<double> kkdd = KKDD(psi, sites, i);
 	psi.position(i);
-	complex<double> zk = 0.5*8*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Id", "S+",  i));// 2comes from REAL,
+	std::complex<double> zk = 0.5*8*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Id", "S+",  i));// 2comes from REAL,
 	// 0.5 from (spsm+smsp)/2 = sxsx+sysy,
 	// 8 is 3spin to 3sigma
-	complex<double> zzzk = 0.5*32*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Sz", "S+",  i));
-	complex<double> zzk1 = 0.5*16*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Id", "S+",  i));
-	complex<double> zzk2 = 0.5*16*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Sz", "S+",  i));
-	complex<double> q2 = 0.25*(kkdd + zk + zzzk - zzk1 - zzk2);
-	double q2plus = -2 * real(q2);
-	double q2minus = 2 * imag(q2);
+	std::complex<double> zzzk = 0.5*32*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Sz", "S+",  i));
+	std::complex<double> zzk1 = 0.5*16*(Correlations5site(psi,sites, "S-", "Sz", "Sz", "Id", "S+",  i));
+	std::complex<double> zzk2 = 0.5*16*(Correlations5site(psi,sites, "S-", "Id", "Sz", "Sz", "S+",  i));
+	std::complex<double> q2 = 0.25*(kkdd + zk + zzzk - zzk1 - zzk2);
+	double q2plus = -2 * std::real(q2);
+	double q2minus = 2 * std::imag(q2);
 	return {q2plus, q2minus};
 }
 
-double Q2plus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){
-	return -real(Q2(psi, sites, i));
+double Q2plus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){
+	return -std::real(Q2(psi, sites, i));
 }
 
-double Q2minus(MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){
-	return imag(Q2(psi, sites, i));
+double Q2minus(itensor::MPS& psi, const itensor::BasicSiteSet<itensor::SpinHalfSite>& sites, const int i){
+	return std::imag(Q2(psi, sites, i));
 }
-
-
-
