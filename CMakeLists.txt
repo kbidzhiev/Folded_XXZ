@@ -47,3 +47,23 @@ if(BUILD_TESTING)
   target_link_libraries(observables_test PRIVATE folded_xxz::observables)
   add_test(NAME observables_test COMMAND observables_test)
 endif()
+
+find_program(CLANG_FORMAT_EXECUTABLE clang-format)
+
+if(CLANG_FORMAT_EXECUTABLE)
+  file(GLOB_RECURSE FORMAT_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cc"
+  )
+
+  add_custom_target(format
+    COMMAND "${CLANG_FORMAT_EXECUTABLE}" -i ${FORMAT_SOURCES}
+    COMMENT "Formatting C++ sources"
+  )
+
+  add_custom_target(format-check
+    COMMAND "${CLANG_FORMAT_EXECUTABLE}" --dry-run --Werror ${FORMAT_SOURCES}
+    COMMENT "Checking C++ formatting"
+  )
+endif()
