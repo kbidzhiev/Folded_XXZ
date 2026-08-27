@@ -35,6 +35,19 @@ cmake --build build
 The resulting executable is `build/3siteHam`. CMake finds the required BLAS,
 LAPACK, and threading libraries used by ITensor.
 
+To configure, build, check formatting, run tests, and launch the simulation in
+one command, use:
+
+```bash
+./scripts/run.sh N 40 T 20 tau 0.01 TL 100 TR 5
+```
+
+Override the default ITensor location or build directory when needed:
+
+```bash
+ITENSOR_ROOT=/path/to/itensor BUILD_DIR=/path/to/build ./scripts/run.sh
+```
+
 ## Tests
 
 Build and run the CTest suite with:
