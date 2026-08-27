@@ -13,7 +13,7 @@ double Entropy(itensor::MPS &psi, const int i, std::vector<double> &sing_vals,
   itensor::ITensor S, V;
   // Remark: We know that the rank of wf is at most bond_dim, so we specify
   // this value to the SVD routine, in order to avoid many spurious small singular values (like ~
-  // 1e-30) which should in fact be exaclty zero.
+  // 1e-30) which should in fact be exactly zero.
   auto spectrum = itensor::svd(
       wf, U, S, V,
       {"MaxDim", bond_dim}); // Todo: we should use min(bond_dim, bond_dim_left*2, bond_dim_right*2)
@@ -50,7 +50,7 @@ double Sz(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> 
   // itensor::ITensor bra = itensor::dag(itensor::prime(ket, "Site"));
   auto Sz = itensor::op(sites, "Sz", i);
   ket *= Sz;
-  ket *= itensor::dag(itensor::prime(psi(i), "Site")); // multipuing by bra
+  ket *= itensor::dag(itensor::prime(psi(i), "Site")); // Multiply by the bra.
   // itensor::ITensor B = ket * bra;
   double sz = std::real(itensor::eltC(ket)); // 2 here is "sigma_z = 2* s_z"
   return sz;
@@ -108,7 +108,7 @@ std::complex<double> SzCorrelation(itensor::MPS &psi,
   return correlation;
 }
 
-// EgergyKin + EnergyPot at site i (i,i+2,i+4)
+// Kinetic plus potential energy at site i (i, i+2, i+4).
 double Energy(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
               const int i) {
   psi.position(i);
@@ -181,7 +181,7 @@ std::complex<double> KKDD(itensor::MPS &psi,
   auto Sm1 = itensor::op(sites, "S+", i + 6); // i+3
   auto Sm2 = itensor::op(sites, "S+", i + 8); // i+4
   ket *= Sp1;
-  auto ir = itensor::commonIndex(psi(i + 2), psi(i + 3), "Link"); // this link exist
+  auto ir = itensor::commonIndex(psi(i + 2), psi(i + 3), "Link"); // This link exists.
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i + 2), "Site"), ir));
   ket *= psi(i + 3);
   ket *= itensor::dag(itensor::prime(psi(i + 3), "Link"));
@@ -200,7 +200,7 @@ std::complex<double> KKDD(itensor::MPS &psi,
   auto il = itensor::commonIndex(psi(i + 7), psi(i + 8), "Link");
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i + 8), "Site"), il));
   std::complex<double> kkdd =
-      0.25 * 16 * 2 * itensor::eltC(ket); // 4 is needed to convert four Spin matrices to Pauili
+      0.25 * 16 * 2 * itensor::eltC(ket); // Convert four spin matrices to Pauli matrices.
   return kkdd;
 }
 
@@ -217,7 +217,7 @@ std::complex<double> Correlations5site(itensor::MPS &psi,
 
   itensor::ITensor ket = psi(i);
   ket *= Op0;
-  auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // this link exist
+  auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // This link exists.
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
 
   ket *= psi(i + 1);

@@ -22,7 +22,7 @@ std::complex<double> SzCorrelation(itensor::MPS &psi,
                                    const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
                                    const std::string &op_name1, const std::string &op_name2, int i);
 
-// EgergyKin + EnergyPot at site i (i,i+2,i+4)
+// Kinetic plus potential energy at site i (i, i+2, i+4).
 
 double Energy(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites, int i);
 

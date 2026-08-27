@@ -114,7 +114,7 @@ public:
     define("max_bond", 4000); // maximum bond dimension
     define("trunc", 1e-10);   // maximum truncation error
     define("trunc0", 1e-10);
-    define("energy", 1e-10); // convergence criterium on the energy
+    define("energy", 1e-10); // energy convergence criterion
     define("sweeps", 999);   // maximum number of sweeps in the DMRG
     define("TrotterOrder", 2);
     define("antal", 0);
@@ -159,7 +159,7 @@ private:
       ampo += -2 * J, "S-", j, "Sz", j + 2, "S+", j + 4;
     }
 
-    std::cout << "H = 3site is construcnted" << std::endl;
+    std::cout << "Three-site Hamiltonian constructed" << std::endl;
     if (param.value("PBC")) {
       // This part realizes Periodic Boundary Condition (PBC)
       // term (N-1,N,1)
@@ -176,7 +176,7 @@ private:
       ampo += -2 * J, "S-", N - 1, "Sz", 1, "S+", 3;
       std::cout << "(" << (N - 1 + 2) / 2 << ", " << (1 + 1) / 2 << ", " << (3 + 1) / 2 << ")"
                 << std::endl;
-      std::cout << "H = 3site is periodic" << std::endl;
+      std::cout << "Three-site Hamiltonian uses periodic boundaries" << std::endl;
     }
   }
 };
@@ -199,7 +199,7 @@ public:
     const int end = param.value("end");
     const int order = param.value("TrotterOrder");
     if (order == 1) {
-      std::cout << "trotter 1 scheme" << std::endl;
+      std::cout << "First-order Trotter scheme" << std::endl;
       if (std::imag(tau) < 1e-8) {
         std::cout << "Temperature evolution" << std::endl;
         TemperatureGates(begin, end, tau, sites, param);
@@ -211,7 +211,7 @@ public:
         TimeGates(begin + 4, end, tau, sites, param);
       }
     } else {
-      std::cout << "trotter 2 scheme" << std::endl;
+      std::cout << "Second-order Trotter scheme" << std::endl;
       double begin0 = begin;
       double begin2 = begin + 2;
       double begin4 = begin + 4;
@@ -224,7 +224,7 @@ public:
         TemperatureGates(begin2, end, 0.5 * tau, sites, param); // B
         TemperatureGates(begin0, end, 0.5 * tau, sites, param); // A
       } else {
-        std::cout << "Time evolutions " << std::endl;
+        std::cout << "Time evolution" << std::endl;
         TimeGates(begin0, end, 0.5 * tau, sites, param); // A
         TimeGates(begin2, end, 0.5 * tau, sites, param); // B
         TimeGates(begin4, end, tau, sites, param);       // C
@@ -243,11 +243,11 @@ public:
     const double TR = param.value("TR");
     const int h_half = param.value("begin");
     const int dot = itensor::length(sites) / 2;
-    std::cout << "dot in trotter = " << dot << std::endl;
+    std::cout << "Dot in Trotter evolution = " << dot << std::endl;
     for (int j = begin; j <= end - 5; j += step) {
       if (h_half > 5 && j < dot) { //&& dot < j + step - 1
         std::cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]" << std::endl;
-        continue; // here we skip part of loop and got to the next j = j+ step
+        continue; // Skip this gate and continue with the next triplet.
       }
       std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")" << std::endl;
       auto hh = J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2) *
@@ -362,11 +362,11 @@ int run_simulation(int argc, char *argv[]) {
 
   itensor::SpinHalf sites(N, {"ConserveQNs=", false}); // HILBERT_SPACE = itensor::SpinHalf
   itensor::MPS psi;
-  std::cout << "start defining H" << std::endl;
+  std::cout << "Constructing Hamiltonian" << std::endl;
   ThreeSiteHamiltonian Ham(sites, param);
   const int dot = Ham.dot;
   auto H = itensor::toMPO(Ham.ampo);
-  std::cout << "finish H" << std::endl;
+  std::cout << "Finished constructing Hamiltonian" << std::endl;
   auto energy(0);
   psi = itensor::MPS(sites);
   std::cout << "N= " << N << std::endl;
@@ -504,7 +504,7 @@ int run_simulation(int argc, char *argv[]) {
   param.set("begin", 1);
   param.set("hL", 0);
   param.set("hR", 0);
-  std::cout << "finish H_half" << std::endl;
+  std::cout << "Finished preparing half-chain gates" << std::endl;
 
   const int time_total = beta_steps_max + n_steps;
   for (int n = 0; n <= time_total; ++n) {
@@ -631,20 +631,20 @@ int run_simulation(int argc, char *argv[]) {
     }
 
     if (n < beta_steps_min) {
-      std::cout << "Temperature evol with H" << std::endl;
+      std::cout << "Temperature evolution with H" << std::endl;
       expH_beta.EvolvePhysical(psi, args0);
       psi.orthogonalize(args);
       std::cout << "dot = " << dot + 1 << std::endl;
 
       psi.normalize();
     } else if (n < beta_steps_max) {
-      std::cout << "Temperature evol with H_half" << std::endl;
+      std::cout << "Temperature evolution with half-chain H" << std::endl;
       std::cout << "n/beta_steps_max = " << n << "/" << beta_steps_max << std::endl;
       expH_beta_half.EvolvePhysical(psi, args0);
       psi.orthogonalize(args);
       psi.normalize();
     } else {
-      std::cout << "Time evol" << std::endl;
+      std::cout << "Time evolution" << std::endl;
       expH.Evolve(psi, args);
       psi.orthogonalize(args);
     }
