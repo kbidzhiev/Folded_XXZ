@@ -35,6 +35,17 @@ cmake --build build
 The resulting executable is `build/3siteHam`. CMake finds the required BLAS,
 LAPACK, and threading libraries used by ITensor.
 
+## Tests
+
+Build and run the CTest suite with:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+The current test suite verifies core observables against a deterministic
+all-up product state.
+
 ## Run
 
 Parameters are supplied as whitespace-separated `name value` pairs. All

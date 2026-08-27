@@ -36,3 +36,11 @@ target_link_libraries(folded_xxz_observables PUBLIC
 
 add_executable(3siteHam src/main.cc)
 target_link_libraries(3siteHam PRIVATE folded_xxz::observables)
+
+include(CTest)
+
+if(BUILD_TESTING)
+  add_executable(observables_test tests/observables_test.cc)
+  target_link_libraries(observables_test PRIVATE folded_xxz::observables)
+  add_test(NAME observables_test COMMAND observables_test)
+endif()
