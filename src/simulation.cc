@@ -142,37 +142,33 @@ private:
 		const double hR = param.value("hR");
 		const double TL = param.value("TL");
 		const double TR = param.value("TR");
-		for (int j = n; j <= N - 4; j += 2) {
-			// Coefficients convert spin-1/2 operators to Pauli-matrix conventions.
-			ampo += J * 4 * 0.25, "S+", j, "S-", j + 4; // 0.5 (SpSm+ SmSp) = SxSx + SySy
-			ampo += J * 4 * 0.25, "S-", j, "S+", j + 4;
-			ampo += J * -8 * 0.25, "S+", j, "Sz", j + 2, "S-", j + 4;
-			ampo += J * -8 * 0.25, "S-", j, "Sz", j + 2, "S+", j + 4;
-		}
 		for (int j = n; j <= N; j += 2) {
-			double mu;
-			if (j <= N / 2) {
-				mu = hL * TL;
-			} else {
-				mu = hR * TR;
-			}
+			const double mu = j <= N / 2 ? hL * TL : hR * TR;
 			ampo += -J * (mu) * std::pow(-1, (j + 1) / 2), "Sz", j;
 		}
+		for (int j = n; j <= N - 4; j += 2) {
+			// Coefficients convert spin-1/2 operators to Pauli-matrix conventions.
+			ampo += J, "S+", j, "S-", j + 4;
+			ampo += J, "S-", j, "S+", j + 4;
+			ampo += -2 * J, "S+", j, "Sz", j + 2, "S-", j + 4;
+			ampo += -2 * J, "S-", j, "Sz", j + 2, "S+", j + 4;
+		}
+
 		std::cout << "H = 3site is construcnted" << std::endl;
 		if (param.value("PBC")) {
 			// This part realizes Periodic Boundary Condition (PBC)
 			// term (N-1,N,1)
-			ampo += J * 4 * 0.25, "S+", N - 3, "S-", 1;
-			ampo += J * 4 * 0.25, "S-", N - 3, "S+", 1;
-			ampo += J * -8 * 0.25, "S+", N - 3, "Sz", N - 1, "S-", 1;
-			ampo += J * -8 * 0.25, "S-", N - 3, "Sz", N - 1, "S+", 1;
+			ampo += J, "S+", N - 3, "S-", 1;
+			ampo += J, "S-", N - 3, "S+", 1;
+			ampo += -2 * J, "S+", N - 3, "Sz", N - 1, "S-", 1;
+			ampo += -2 * J, "S-", N - 3, "Sz", N - 1, "S+", 1;
 			std::cout << "PBC;\n sites (" << (N - 3 + 1) / 2 << ", "
 					<< (N - 1 + 1) / 2 << ", " << (1 + 1) / 2 << "), ";
 			// term (N,1,2)
-			ampo += J * 4 * 0.25, "S+", N - 1, "S-", 3;
-			ampo += J * 4 * 0.25, "S-", N - 1, "S+", 3;
-			ampo += J * -8 * 0.25, "S+", N - 1, "Sz", 1, "S-", 3;
-			ampo += J * -8 * 0.25, "S-", N - 1, "Sz", 1, "S+", 3;
+			ampo += J, "S+", N - 1, "S-", 3;
+			ampo += J, "S-", N - 1, "S+", 3;
+			ampo += -2 * J, "S+", N - 1, "Sz", 1, "S-", 3;
+			ampo += -2 * J, "S-", N - 1, "Sz", 1, "S+", 3;
 			std::cout << "(" << (N - 1 + 2) / 2 << ", " << (1 + 1) / 2 << ", "
 					<< (3 + 1) / 2 << ")" << std::endl;
 			std::cout << "H = 3site is periodic" << std::endl;
@@ -246,7 +242,6 @@ public:
 		const double TL = param.value("TL");
 		const double TR = param.value("TR");
 		const int h_half = param.value("begin");
-		double mu = 0;
 		const int dot = itensor::length(sites) / 2;
 		std::cout << "dot in trotter = " << dot << std::endl;
 		for (int j = begin; j <= end - 5; j += step) {
@@ -257,22 +252,19 @@ public:
 			}
 			std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< std::endl;
-			auto hh = J * 4 * 0.25 * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2)
+			auto hh = J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2)
 					* itensor::op(sites, "Sm", j + 4);
 
-			hh += J * 4 * 0.25 * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2)
+			hh += J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2)
 					* itensor::op(sites, "Sp", j + 4);
 
-			hh += -J * 8 * 0.25 * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2)
+			hh += -2 * J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2)
 					* itensor::op(sites, "Sm", j + 4);
 
-			hh += -J * 8 * 0.25 * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2)
+			hh += -2 * J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2)
 					* itensor::op(sites, "Sp", j + 4);
 
-			if (j < dot)
-				mu = hL * TL;
-			else
-				mu = hR * TR;
+			const double mu = j < dot ? hL * TL : hR * TR;
 
 			hh += -mu * std::pow(-1, (j + 1) / 2) * itensor::op(sites, "Sz", j)
 					* itensor::op(sites, "Id", j + 2) * itensor::op(sites, "Id", j + 4);
@@ -295,16 +287,16 @@ public:
 			std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< std::endl;
 			// This part acts on physical sites.
-			auto hh = J * 4 * 0.25 * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2)
+			auto hh = J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2)
 					* itensor::op(sites, "Sm", j + 4);
 
-			hh += J * 4 * 0.25 * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2)
+			hh += J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2)
 					* itensor::op(sites, "Sp", j + 4);
 
-			hh += -J * 8 * 0.25 * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2)
+			hh += -2 * J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2)
 					* itensor::op(sites, "Sm", j + 4);
 
-			hh += -J * 8 * 0.25 * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2)
+			hh += -2 * J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2)
 					* itensor::op(sites, "Sp", j + 4);
 
 			auto G = itensor::expHermitian(hh, -tau);
