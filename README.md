@@ -11,22 +11,29 @@ The program is currently a single executable built from `3siteHam.cc` and
 ## Requirements
 
 - A C++ compiler compatible with the installed ITensor version.
-- ITensor for C++ and its Makefile configuration.
-- GNU Make.
+- A built ITensor for C++ v3 installation.
+- CMake 3.21 or later.
 
-This repository expects the local ITensor build fragments `this_dir.mk` and
-`options.mk`. They are intentionally ignored by Git, so a fresh checkout will
-not build until they are supplied from an ITensor installation or local setup.
+ITensor C++ v3 is built with Makefiles and does not provide a CMake package.
+This project locates its headers and static library through the
+`ITENSOR_ROOT` CMake cache variable. The ITensor build must be completed before
+configuring this project.
 
 ## Build
 
-After configuring the ITensor Makefile fragments expected by `Makefile`, run:
+Configure an out-of-source build, passing the root of the built ITensor source
+tree:
 
 ```bash
-make
+cmake -S . -B build \
+  -DITENSOR_ROOT="$HOME/Programming/itensor" \
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build
 ```
 
-The resulting executable is `3siteHam.exe`.
+The resulting executable is `build/3siteHam`. CMake finds the required BLAS,
+LAPACK, and threading libraries used by ITensor.
 
 ## Run
 
@@ -35,7 +42,7 @@ values are numeric; unknown parameter names terminate the program after it
 prints the supported parameter set.
 
 ```bash
-./3siteHam.exe N 40 T 20 tau 0.01 TL 100 TR 5 EnergyProf 0.1 Sz 0.1
+./build/3siteHam N 40 T 20 tau 0.01 TL 100 TR 5 EnergyProf 0.1 Sz 0.1
 ```
 
 `N` is the number of sites in the original physical chain. Internally the
@@ -104,6 +111,7 @@ convenient to plot with tools such as gnuplot.
 - `observables.h` / `observables.cc`: entropy, magnetization, energy, and
   conserved-charge measurement routines.
 - `profile.h`: small scoped timing utility used by `LOG_DURATION`.
+- `CMakeLists.txt`: CMake build definition and ITensor integration.
 - `Pictures/`: example energy-profile animations.
 
 ## Notes
