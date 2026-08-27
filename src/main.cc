@@ -1,4 +1,3 @@
-// C++ code for 3-site Hamiltonian
 #include "itensor/all.h"
 #include <iostream>
 #include <iomanip>
@@ -15,12 +14,7 @@
 #include <exception>
 #include <folded_xxz/observables.h>
 #include <folded_xxz/profile.h>
-//#include "time_evolution.h"
 
-
-//------------------------------------------------------------------
-//The function below translate numbers (etc.) into character strings
-//the second parameter (optional) is the precision (digits)
 template<class T>
 inline std::string to_string(const T &t, unsigned int precision = 0) {
 	std::stringstream ss;
@@ -29,7 +23,7 @@ inline std::string to_string(const T &t, unsigned int precision = 0) {
 	ss << t;
 	return ss.str();
 }
-//____________________________________________________________
+
 double char2double(char *a) {
 	char *end_ptr;
 	const double x = std::strtod(a, &end_ptr);
@@ -38,8 +32,8 @@ double char2double(char *a) {
 				<< std::endl, std::exit(0);
 	return x;
 }
-//____________________________________________________________
-class Parameters: public std::map<std::string, double> { // class Parameters have all methods from container "std::map" (std::string key, double value)
+
+class Parameters: public std::map<std::string, double> {
 public:
 	double val(std::string var_name) const { // .val("C") gives value for parmeter C
 		std::map<std::string, double>::const_iterator it = find(var_name);
@@ -86,14 +80,10 @@ public:
 		}
 	}
 };
-//_____________________________________________________
 
-// class of PUBLIC parameters
 class ThreeSiteParam: public Parameters {
 public:
-	ThreeSiteParam() { //Constructor
-		//Specify below all the allowed parameter names,
-		//and their default values
+	ThreeSiteParam() {
 		operator[]("N") = 10; //Length of the chain N-n
 		operator[]("begin") = 1;
 		operator[]("end") = 10;
@@ -127,18 +117,15 @@ public:
 		operator[]("write_wf") = 0; //0->do not write the w.-f. to disk. if dt>0 => w.-f. to disk (over)written to disk every time=dt*integer.
 	}
 };
-//_____________________________________________________
 
-//I'm creating a 3 site Hamiltonian for system of N sites
 class ThreeSiteHamiltonian {
 public:
 	int dot;
-	itensor::AutoMPO ampo;  //variable ampo
-	//Define a constructor for this class 'ThreeSiteHamiltonian'
+	itensor::AutoMPO ampo;
 	ThreeSiteHamiltonian(const itensor::SiteSet &sites, const ThreeSiteParam &param) :
 			ampo(sites) {
-		N = itensor::length(sites); // size of Hamiltonian comes with onject itensor::SiteSet sites, not just as number N
-		init(param);   // initializing the Hamiltonian
+		N = itensor::length(sites);
+		init(param);
 		dot = N / 2;
 		std::cout << "A Hamiltonian with " << N << " sites was constructed." << std::endl;
 	}
@@ -151,13 +138,8 @@ private:
 		const double hR = param.val("hR");
 		const double TL = param.val("TL");
 		const double TR = param.val("TR");
-		//dot = (N) / 2;  //Position of the "dot"
-		//std::cout << "The dot is on site #" << dot << std::endl;
-		//if ((2*N)<=3) std::cout<<"Error, N="<<N<<" is too small.\n",std::exit(0);
 		for (int j = n; j <= N - 4; j += 2) {
-			// N = number os sites = 2 L
-			//Strange coefficients are needed to match with
-			// spin Pauli matrices instead of Sx Sy
+			// Coefficients convert spin-1/2 operators to Pauli-matrix conventions.
 			ampo += J * 4 * 0.25, "S+", j, "S-", j + 4; // 0.5 (SpSm+ SmSp) = SxSx + SySy
 			ampo += J * 4 * 0.25, "S-", j, "S+", j + 4;
 			ampo += J * -8 * 0.25, "S+", j, "Sz", j + 2, "S-", j + 4;
@@ -194,8 +176,6 @@ private:
 	}
 };
 
-//Trotter Gates
-
 class TrotterExp {
 public:
 	struct TGate {
@@ -214,7 +194,6 @@ public:
 	;
 	void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
 			const std::complex<double> tau) {
-		//const int begin = param.val("begin");
 		const int begin = 1;
 		const int end = param.val("end");
 		const int order = param.val("TrotterOrder");
@@ -232,18 +211,10 @@ public:
 			}
 		} else {
 			std::cout << "trotter 2 scheme" << std::endl;
-			/*
-			 double a1 = 1. / 6;		// more precise arrpoximation coefficients
-			 double a2 = 1 - 2. * a1;
-			 double b1 = (3 - sqrt(3)) / 6.;
-			 double b2 = 1. / 2 - b1;
-			 double c1 = 1. / 2;
-			 */
-			double begin0 = begin; //this variable are needed to change operators ABC
+			double begin0 = begin;
 			double begin2 = begin + 2;
 			double begin4 = begin + 4;
-			//Trotter gates from arxiv.org/std::abs/1901.04974
-			// Eq. (38),(47)
+			// Trotter gates from arxiv.org/abs/1901.04974, Eqs. (38) and (47).
 			if (std::imag(tau) < 1e-8) {
 				std::cout << "Temperature evolution" << std::endl;
 				TemperatureGates(begin0, end, 0.5 * tau, sites, param); //A
@@ -251,18 +222,6 @@ public:
 				TemperatureGates(begin4, end, tau, sites, param); 		//C
 				TemperatureGates(begin2, end, 0.5 * tau, sites, param);  //B
 				TemperatureGates(begin0, end, 0.5 * tau, sites, param); //A
-				/*
-				 //this is still a second order but a bit more precise
-				 TemperatureGates(begin0, end, a1 * tau, sites, param); //A
-				 TemperatureGates(begin2, end, b1 * tau, sites, param); //B
-				 TemperatureGates(begin4, end, c1 * tau, sites, param); //C
-				 TemperatureGates(begin2, end, b2 * tau, sites, param); //B
-				 TemperatureGates(begin0, end, a2 * tau, sites, param); //A
-				 TemperatureGates(begin2, end, b2 * tau, sites, param); //B
-				 TemperatureGates(begin4, end, c1 * tau, sites, param); //C
-				 TemperatureGates(begin2, end, b1 * tau, sites, param); //B
-				 TemperatureGates(begin0, end, a1 * tau, sites, param); //A
-				 */
 			} else {
 				std::cout << "Time evolutions " << std::endl;
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
@@ -270,17 +229,6 @@ public:
 				TimeGates(begin4, end, tau, sites, param); 	 //C
 				TimeGates(begin2, end, 0.5 * tau, sites, param); //B
 				TimeGates(begin0, end, 0.5 * tau, sites, param); //A
-				/*
-				 TimeGates(begin0, end, a1 * tau, sites, param); //A
-				 TimeGates(begin2, end, b1 * tau, sites, param); //B
-				 TimeGates(begin4, end, c1 * tau, sites, param); //C
-				 TimeGates(begin2, end, b2 * tau, sites, param); //B
-				 TimeGates(begin0, end, a2 * tau, sites, param); //A
-				 TimeGates(begin2, end, b2 * tau, sites, param); //B
-				 TimeGates(begin4, end, c1 * tau, sites, param); //C
-				 TimeGates(begin2, end, b1 * tau, sites, param); //B
-				 TimeGates(begin0, end, a1 * tau, sites, param); //A
-				 */
 			}
 		}
 	}
@@ -320,10 +268,7 @@ public:
 			if (j < dot)
 				mu = hL * TL;
 			else
-				mu = hR * TR;//man this part is TR/TL fix it 
-			//* std::pow(-1, (j + 1) / 2)
-			//* std::pow(-1, (j + 1 + 2) / 2)
-			//* std::pow(-1, (j + 1 + 4) / 2)
+				mu = hR * TR;
 
 			hh += -mu * std::pow(-1, (j + 1) / 2) * itensor::op(sites, "Sz", j)
 					* itensor::op(sites, "Id", j + 2) * itensor::op(sites, "Id", j + 4);
@@ -345,7 +290,7 @@ public:
 		for (int j = begin; j < end - 4; j += step) {
 			std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")"
 					<< std::endl;
-			//this part act on std::real sites
+			// This part acts on physical sites.
 			auto hh = J * 4 * 0.25 * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2)
 					* itensor::op(sites, "Sm", j + 4);
 
@@ -391,7 +336,6 @@ public:
 
 	void Evolve(itensor::MPS& psi, const itensor::Args &args) {
 		EvolvePhysical(psi, args);
-		//	EvolveAncillas(psi, args);
 	}
 	void SwapNextSites(itensor::MPS &psi, const int j) {
 		psi.position(j);
@@ -417,33 +361,6 @@ void DisconnectChains(itensor::MPS &psi, const int j) {
 	psi.orthogonalize();
 }
 
-// OBSERVABLES are in "observables.h"
-
-// Time evolution e^-iHt = 1-iHt :: REMOVED
-
-//------------------------------------------------------------------
-/*
- class MyDMRGObserver: public DMRGObserver {
- double previous_energy;
- const double precision;
- public:
- MyDMRGObserver(const itensor::MPS &psi, double prec = 1e-10) :
- DMRGObserver(psi), precision(prec) {
- }
- bool checkDone(const itensor::Args &args = itensor::Args::global()) { const
- double energy = args.getReal("Energy", 0);
- std::cout << "    Energy change:" << energy - previous_energy << std::endl;
- if (std::abs(energy - previous_energy) < precision) {
- std::cout << "   Energy has converged -> stop the DMRG.\n";
- return true;
- } else {
- previous_energy = energy;
- return false;
- }
- }
- };
- */
-
 int main(int argc, char *argv[]) {
 	LOG_DURATION("MAIN");
 	ThreeSiteParam param;
@@ -455,7 +372,6 @@ int main(int argc, char *argv[]) {
 
 	itensor::SpinHalf sites(N, { "ConserveQNs=", false }); //HILBERT_SPACE = itensor::SpinHalf
 	itensor::MPS psi;
-	//--------------------------------------------------------------
 	std::cout << "start defining H" << std::endl;
 	ThreeSiteHamiltonian Ham(sites, param);
 	const int dot = Ham.dot;
@@ -465,8 +381,7 @@ int main(int argc, char *argv[]) {
 	psi = itensor::MPS(sites);
 	std::cout << "N= " << N << std::endl;
 	for (int i = 1; i < N; i += 2) { // N = 2L, where L is the original system size
-		// in this part I'm creating entangled states at sites (j,j+1) 
-		// where j is a physical site, j+1 is an ancilla
+		// Odd sites are physical sites and even sites are their ancillas.
 		auto il = itensor::commonIndex(psi(i), psi(i + 1), "Link");//Just to initialize the variable;
 		auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link");//Just to initialize the variable;
 		auto s1 = sites(i);
@@ -499,16 +414,11 @@ int main(int argc, char *argv[]) {
 		itensor::svd(wf, psi.ref(i), D, psi.ref(i + 1)); // put the prepared ancilla "wf" to the |PSI>
 		psi.ref(i) *= D;
 	}
-	//itensor::MPS psi2 = psi;
 	energy = itensor::inner(psi, H, psi); //<psi|H0|psi>
 	std::cout << "2. Initial energy=" << energy << " .Norm = " << itensor::inner(psi, psi)
 			<< std::endl;
 
-	//--------------------------------------------------------------
-
 	double tau = param.val("tau");
-	//const int o = param.val("TrotterOrder");
-	//MPO expH1, expH2, expH3, expH4, expH5, expH6, expH7;
 
 	auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.val("trunc"),
 			"MaxDim", param.longval("max_bond"), "Normalize", false);// arguments for time dynamics
@@ -516,7 +426,7 @@ int main(int argc, char *argv[]) {
 	auto args0 = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.val("trunc0"),
 			"MaxDim", param.longval("max_bond"), "Normalize", false); // arguments for IMAGINARY time == initial temperature state
 
-	// Output . dat files = observables
+	// Output files for enabled observables.
 	std::ofstream ent, spec, eprof, sz, sz_avrg, energy_beta, energy_prof,
 			q1minus_prof, q2prof; //here I'm defining output streams == files
 	std::ios_base::openmode mode;
@@ -528,21 +438,18 @@ int main(int argc, char *argv[]) {
 		ent.precision(15);
 		ent << "#time \t Entropy(dot) \t BondDim(dot) \t MaxBondDim\n";
 	}
-	//---------------------
 	dt = param.val("SVD_spec");
 	if (dt > 0) { //SVD Spectrum on central bond
 		spec.open("SVD_spec.dat", mode);
 		spec.precision(15);
 		spec << "#Position=" << dot << "\t<SVD_spectrum>\t\ttime\n";
 	}
-	//---------------------
 	dt = param.val("Energy_beta");
 	if (dt > 0) { // total Energy vs beta. plus std::max bond dim at the 3rd column
 		energy_beta.open("Energy_beta.dat", mode);
 		energy_beta.precision(15);
 		energy_beta << "beta \t Energy \n";
 	}
-	//---------------------
 	dt = param.val("Eprof");
 	if (dt > 0) { //Full entropy profile
 		eprof.open("Entropy_profile.dat", mode);
@@ -551,7 +458,6 @@ int main(int argc, char *argv[]) {
 				<< std::setw(16)
 				<< "\t Entropy_sqrt \t Entropy_state1 \t time \t\t Bond.Dim(i)\n";
 	}
-	//---------------------
 	dt = param.val("Sz");
 	if (dt > 0) { //Full magnetization profile
 		sz.open("Sz_profile.dat", mode);
@@ -565,7 +471,6 @@ int main(int argc, char *argv[]) {
 				<< "\t\ttime\n";
 
 	}
-	//---------------------
 	dt = param.val("EnergyProf");
 	if (dt > 0) { //Energy profile
 		energy_prof.open("Energy_profile.dat", mode);
@@ -573,14 +478,13 @@ int main(int argc, char *argv[]) {
 		energy_prof << "#Position=i-" << "\t<Ham_i>\t" << dot
 				<< "\t\ttime(or beta)\n";
 
-		//Q1minus profile is initialized simultaniously with energy profile
+		// Q1minus profile is initialized with the energy profile.
 		q1minus_prof.open("Q1minus_profile.dat", mode);
 		q1minus_prof.precision(15);
 		q1minus_prof << "#Position=i-" << "\t<Q1minus_i>\t" << dot
 				<< "\t\ttime(or beta)\n";
 
 	}
-	//---------------------
 	dt = param.val("Q2Prof");
 	if (dt > 0) { //Full entropy profile
 		q2prof.open("Q2_profile.dat", mode);
@@ -588,8 +492,6 @@ int main(int argc, char *argv[]) {
 		q2prof << "#Position=i-" << dot << std::setw(16) << "\t Entropy(i)"
 				<< std::setw(16) << "\t Q2plus \t Q2minus \t time \t \n";
 	}
-	//---------------------
-	//////////// Trottexp expH //////////
 	std::cout << "Trotter Gates for beta " << std::endl;
 	param["begin"] = 1;
 	param["end"] = N;
@@ -606,7 +508,7 @@ int main(int argc, char *argv[]) {
 	param["hR"] = 0;
 	TrotterExp expH(sites, param, itensor::Cplx_i * 1.0 * tau);
 
-	//Preparation of biased Temperature state
+	// Prepare the biased thermal state.
 	const double TL = param.val("TL");
 	const double TR = param.val("TR");
 	const double beta_min = std::min(1. / TL, 1. / TR);
@@ -634,8 +536,6 @@ int main(int argc, char *argv[]) {
 		std::cout.flush();
 		std::vector<double> Myspec; //std::vector which will be the SVD spectrum
 
-		//  ----- Compute observables ---
-		//  ----- Entropy between sites i and i+1
 		if (param.val("Entropy") != 0) {
 			double entr = Entropy(psi, dot, Myspec, 1);
 			ent << time << "\t" << std::setw(16) << std::setfill('0') << entr << "\t"
@@ -655,7 +555,6 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		// ------- entanglement Entropy profile -----
 		if (param.val("Eprof") > 0)
 			if (n % int(param.val("Eprof") / tau) == 0) {
 				eprof << "\"t=" << time << "\"" << std::endl;
@@ -669,7 +568,6 @@ int main(int argc, char *argv[]) {
 					eprof << "\n\n"; //I need this part to separate time steps in gnuplot
 			}
 
-		// ------- Energy vs 1/Temperature -------
 		if (param.val("Energy_beta") > 0) {
 			double en = 0;
 			double counter = 0;
@@ -684,7 +582,6 @@ int main(int argc, char *argv[]) {
 					<< std::real(itensor::innerC(psi, H, psi)) / std::real(itensor::innerC(psi, psi))
 					<< "\t" << en << "\t" << itensor::maxLinkDim(psi) << std::endl;
 		}
-		// ------- Energy profile -------
 		if (param.val("EnergyProf") > 0 && beta_steps_max <= n) {
 			if (n % int(param.val("EnergyProf") / tau) == 0) {
 				energy_prof << "\"t=" << time << "\"" << std::endl;
@@ -703,7 +600,6 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		// ------- Q2 profile -------
 		if (param.val("Q2Prof") > 0 && beta_steps_max <= n) {
 			if (n % int(param.val("EnergyProf") / tau) == 0) {
 				q2prof << "\"t=" << time << "\"" << std::endl;
@@ -718,7 +614,6 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		// ------- Sz profile -------
 		if (param.val("Sz") > 0 && beta_steps_max <= n) {
 			if (n % int(param.val("Sz") / tau) == 0) {
 				sz << "\"t=" << time << "\"" << std::endl;
@@ -758,7 +653,6 @@ int main(int argc, char *argv[]) {
 			std::cout << "Temperature evol with H" << std::endl;
 			expH_beta.EvolvePhysical(psi, args0);
 			psi.orthogonalize(args);
-			//DisconnectChains(psi, dot+1);
 			std::cout << "dot = " << dot + 1 << std::endl;
 
 			psi.normalize();
@@ -772,15 +666,14 @@ int main(int argc, char *argv[]) {
 			std::cout << "Time evol" << std::endl;
 			expH.Evolve(psi, args);
 			psi.orthogonalize(args);
-			//psi.normalize();
 		}
-		std::cout << "std::max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
+		std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
 		std::cout << "Norm = " << std::real(itensor::innerC(psi, psi)) << std::endl;
 		std::cout << "Energy = " << std::real(itensor::innerC(psi, H, psi)) << std::endl
 				<< std::endl;
 	}
 
-	std::cout << "Final observables: \n" << "std::max bond dim = " << itensor::maxLinkDim(psi)
+	std::cout << "Final observables: \n" << "max bond dim = " << itensor::maxLinkDim(psi)
 			<< std::endl << "Energy = " << std::real(itensor::innerC(psi, H, psi))
 			<< std::endl << std::endl;
 
