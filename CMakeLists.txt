@@ -34,7 +34,10 @@ target_link_libraries(folded_xxz_observables PUBLIC
   LAPACK::LAPACK
 )
 
-add_executable(3siteHam src/main.cc)
+add_executable(3siteHam
+  src/main.cc
+  src/simulation.cc
+)
 target_link_libraries(3siteHam PRIVATE folded_xxz::observables)
 
 include(CTest)
