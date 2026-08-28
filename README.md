@@ -1,5 +1,7 @@
 # Folded XXZ
 
+[![CI](https://github.com/kbidzhiev/Folded_XXZ/actions/workflows/ci.yml/badge.svg)](https://github.com/kbidzhiev/Folded_XXZ/actions/workflows/ci.yml)
+
 `Folded_XXZ` is a C++ tensor-network simulation of a folded spin-1/2 XXZ
 chain with three-site interactions. It uses [ITensor](https://itensor.org/)
 to prepare a thermally biased state through imaginary-time evolution, then
@@ -8,8 +10,8 @@ evolve it in real time with Trotter gates.
 This code accompanies the scientific work published in
 [SciPost Physics 10, 099 (2021)](https://scipost.org/SciPostPhys.10.5.099).
 
-The program is currently a single simulation executable built from a reusable
-observables library and its driver in `src/`.
+The program is a single simulation executable built from separate physics and
+runtime libraries.
 
 ## Example Results
 
@@ -45,6 +47,10 @@ cmake -S . -B build \
 cmake --build build
 ```
 
+Every push and pull request runs the build, formatter, test suite, and a small
+simulation smoke test on GitHub Actions. Pushing a version tag such as `v1.0.0`
+also creates a GitHub release containing the Linux executable.
+
 The resulting executable is `build/3siteHam`. CMake finds the required BLAS,
 LAPACK, and threading libraries used by ITensor.
 
@@ -75,8 +81,8 @@ all-up product state.
 ## Run
 
 Parameters are supplied as whitespace-separated `name value` pairs. All
-values are numeric; unknown parameter names terminate the program after it
-prints the supported parameter set.
+values are numeric; missing, malformed, or unknown parameters terminate the
+program with an error message.
 
 ```bash
 ./build/3siteHam N 40 T 20 tau 0.01 TL 100 TR 5 EnergyProf 0.1 Sz 0.1
@@ -137,12 +143,17 @@ convenient to plot with tools such as gnuplot.
 
 ## Code map
 
-- `src/main.cc`: parameters, folded three-site Hamiltonian, Trotter evolution,
-  state preparation, and output.
-- `src/observables.cc` and `include/folded_xxz/observables.h`: entropy,
-  magnetization, energy, and conserved-charge measurement routines.
-- `include/folded_xxz/profile.h`: small scoped timing utility used by
-  `LOG_DURATION`.
+- `src/main.cc`: command-line parsing and executable entry point.
+- `src/simulation_runner.cc`: simulation lifecycle, including state
+  preparation, evolution, and output scheduling.
+- `src/initial_state.cc`, `src/three_site_hamiltonian.cc`,
+  `src/trotter_evolution.cc`, and `src/observables.cc`: physics layer.
+- `include/folded_xxz/model_config.h`: typed model inputs shared by the
+  Hamiltonian and Trotter evolution.
+- `src/simulation_config.cc` and `include/folded_xxz/simulation_schedule.h`:
+  typed command-line configuration and scheduling.
+- `src/output.cc`: internal `ObservableWriter`, which owns output files and
+  observable serialization.
 - `CMakeLists.txt`: CMake build definition and ITensor integration.
 - `Pictures/`: example energy-profile animations.
 
@@ -151,5 +162,5 @@ convenient to plot with tools such as gnuplot.
 The model and observable conventions are encoded directly in the source. In
 particular, the Hamiltonian acts on odd (physical) sites of the folded MPS;
 the even sites are ancillas used for purification. Consult the Hamiltonian
-construction in `3siteHam.cc` before comparing normalization or signs with a
+construction in `src/three_site_hamiltonian.cc` before comparing normalization or signs with a
 different XXZ convention.

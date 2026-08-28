@@ -5,14 +5,14 @@
 #include <complex>
 #include <vector>
 
-#include <folded_xxz/parameters.h>
+#include <folded_xxz/model_config.h>
 
 enum class EvolutionMode { ImaginaryTime, RealTime };
 enum class ThermalRegion { FullChain, RightHalf };
 
 class TrotterEvolution {
 public:
-  TrotterEvolution(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+  TrotterEvolution(const itensor::SiteSet &sites, const ModelConfig &config,
                    std::complex<double> tau, EvolutionMode mode,
                    ThermalRegion thermal_region = ThermalRegion::FullChain);
 
@@ -25,16 +25,16 @@ private:
     itensor::ITensor tensor;
   };
 
-  void build_gates(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+  void build_gates(const itensor::SiteSet &sites, const ModelConfig &config,
                    std::complex<double> tau);
   void apply_gate(itensor::MPS &psi, const Gate &gate, const itensor::Args &args) const;
   void append_gate_layer(int first_site, std::complex<double> tau, const itensor::SiteSet &sites,
-                         const ThreeSiteParam &param);
+                         const ModelConfig &config);
   itensor::ITensor local_hamiltonian(const itensor::SiteSet &sites, int first_site,
                                      double coupling) const;
   void add_thermal_field_terms(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
                                int first_site, int center, double coupling,
-                               const ThreeSiteParam &param) const;
+                               const ModelConfig &config) const;
   void add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites, int field_site,
                       int first_site, double coupling, double field) const;
   void swap_next_sites(itensor::MPS &psi, int first_site) const;

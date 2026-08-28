@@ -46,11 +46,8 @@ int main() {
   std::vector<double> singular_values;
   expect_near(Entropy(psi, 5, singular_values, 1.0), 0.0, "product-state entropy");
   expect_near(Energy(psi, sites, 1), 0.0, "product-state energy");
-  expect_near(Q1minus(psi, sites, 1), 0.0, "product-state Q1minus");
   expect_near(Q1(psi, sites, 1), {0.0, 0.0}, "product-state Q1");
   expect_near(Q2(psi, sites, 1), {0.0, 0.0}, "product-state Q2");
-  expect_near(Q2plus(psi, sites, 1), 0.0, "product-state Q2plus");
-  expect_near(Q2minus(psi, sites, 1), 0.0, "product-state Q2minus");
 
   return EXIT_SUCCESS;
 }

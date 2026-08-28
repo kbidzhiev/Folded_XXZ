@@ -2,11 +2,10 @@
 
 #include <cmath>
 
-ThreeSiteHamiltonian::ThreeSiteHamiltonian(const itensor::SiteSet &sites,
-                                           const ThreeSiteParam &param)
+ThreeSiteHamiltonian::ThreeSiteHamiltonian(const itensor::SiteSet &sites, const ModelConfig &config)
     : site_count_(itensor::length(sites)), center_(site_count_ / 2), terms_(sites) {
-  add_field_terms(param);
-  add_bulk_terms(param.value("J"));
+  add_field_terms(config);
+  add_bulk_terms(config.coupling);
 }
 
 int ThreeSiteHamiltonian::center() const { return center_; }
@@ -20,13 +19,10 @@ void ThreeSiteHamiltonian::add_interaction_terms(int left, int middle, int right
   terms_ += -2 * coupling, "S-", left, "Sz", middle, "S+", right;
 }
 
-void ThreeSiteHamiltonian::add_field_terms(const ThreeSiteParam &param) {
-  const double coupling = param.value("J");
-  const double left_field = param.value("hL") * param.value("TL");
-  const double right_field = param.value("hR") * param.value("TR");
+void ThreeSiteHamiltonian::add_field_terms(const ModelConfig &config) {
   for (int site = 1; site <= site_count_; site += 2) {
-    const double field = site <= center_ ? left_field : right_field;
-    terms_ += -coupling * field * std::pow(-1, (site + 1) / 2), "Sz", site;
+    const double field = site <= center_ ? config.left_thermal_field : config.right_thermal_field;
+    terms_ += -config.coupling * field * std::pow(-1, (site + 1) / 2), "Sz", site;
   }
 }
 
