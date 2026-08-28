@@ -1,5 +1,7 @@
 # Folded XXZ
 
+[![CI](https://github.com/kbidzhiev/Folded_XXZ/actions/workflows/ci.yml/badge.svg)](https://github.com/kbidzhiev/Folded_XXZ/actions/workflows/ci.yml)
+
 `Folded_XXZ` is a C++ tensor-network simulation of a folded spin-1/2 XXZ
 chain with three-site interactions. It uses [ITensor](https://itensor.org/)
 to prepare a thermally biased state through imaginary-time evolution, then
@@ -44,6 +46,10 @@ cmake -S . -B build \
 
 cmake --build build
 ```
+
+Every push and pull request runs the build, formatter, test suite, and a small
+simulation smoke test on GitHub Actions. Pushing a version tag such as `v1.0.0`
+also creates a GitHub release containing the Linux executable.
 
 The resulting executable is `build/3siteHam`. CMake finds the required BLAS,
 LAPACK, and threading libraries used by ITensor.
