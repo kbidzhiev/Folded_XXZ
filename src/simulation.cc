@@ -167,164 +167,148 @@ enum class ThermalRegion { FullChain, RightHalf };
 
 class TrotterEvolution {
 public:
-  struct TGate {
-    int i1 = 0;
-    itensor::ITensor G;
-    TGate() {}
-    TGate(int i1_, itensor::ITensor G_) : i1(i1_), G(G_) {}
-  };
   TrotterEvolution(const itensor::SiteSet &sites, const ThreeSiteParam &param,
                    std::complex<double> tau, EvolutionMode mode,
-                   ThermalRegion region = ThermalRegion::FullChain)
-      : mode_(mode), region_(region) {
-    initialize(sites, param, tau);
-  };
-  void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
-                  const std::complex<double> tau) {
-    const int begin = 1;
-    const int end = itensor::length(sites);
-    const int order = param.integer_value("TrotterOrder");
-    if (order == 1) {
-      std::cout << "First-order Trotter scheme" << std::endl;
-      if (mode_ == EvolutionMode::ImaginaryTime) {
-        std::cout << "Temperature evolution" << std::endl;
-        TemperatureGates(begin, end, tau, sites, param);
-        TemperatureGates(begin + 2, end, tau, sites, param);
-        TemperatureGates(begin + 4, end, tau, sites, param);
-      } else {
-        TimeGates(begin, end, tau, sites, param);
-        TimeGates(begin + 2, end, tau, sites, param);
-        TimeGates(begin + 4, end, tau, sites, param);
-      }
-    } else {
-      std::cout << "Second-order Trotter scheme" << std::endl;
-      double begin0 = begin;
-      double begin2 = begin + 2;
-      double begin4 = begin + 4;
-      // Trotter gates from arxiv.org/abs/1901.04974, Eqs. (38) and (47).
-      if (mode_ == EvolutionMode::ImaginaryTime) {
-        std::cout << "Temperature evolution" << std::endl;
-        TemperatureGates(begin0, end, 0.5 * tau, sites, param); // A
-        TemperatureGates(begin2, end, 0.5 * tau, sites, param); // B
-        TemperatureGates(begin4, end, tau, sites, param);       // C
-        TemperatureGates(begin2, end, 0.5 * tau, sites, param); // B
-        TemperatureGates(begin0, end, 0.5 * tau, sites, param); // A
-      } else {
-        std::cout << "Time evolution" << std::endl;
-        TimeGates(begin0, end, 0.5 * tau, sites, param); // A
-        TimeGates(begin2, end, 0.5 * tau, sites, param); // B
-        TimeGates(begin4, end, tau, sites, param);       // C
-        TimeGates(begin2, end, 0.5 * tau, sites, param); // B
-        TimeGates(begin0, end, 0.5 * tau, sites, param); // A
-      }
-    }
-  }
-  void TemperatureGates(const int begin, const int end, const std::complex<double> tau,
-                        const itensor::SiteSet &sites, const ThreeSiteParam &param) {
-    const int step = 6;
-    const double J = param.value("J");
-    const double hL = param.value("hL");
-    const double hR = param.value("hR");
-    const double TL = param.value("TL");
-    const double TR = param.value("TR");
-    const int dot = itensor::length(sites) / 2;
-    std::cout << "Dot in Trotter evolution = " << dot << std::endl;
-    for (int j = begin; j <= end - 5; j += step) {
-      if (region_ == ThermalRegion::RightHalf && j < dot) {
-        std::cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]" << std::endl;
-        continue; // Skip this gate and continue with the next triplet.
-      }
-      std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")" << std::endl;
-      auto hh = J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2) *
-                itensor::op(sites, "Sm", j + 4);
-
-      hh += J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2) *
-            itensor::op(sites, "Sp", j + 4);
-
-      hh += -2 * J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2) *
-            itensor::op(sites, "Sm", j + 4);
-
-      hh += -2 * J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2) *
-            itensor::op(sites, "Sp", j + 4);
-
-      const double mu = j < dot ? hL * TL : hR * TR;
-
-      hh += -mu * std::pow(-1, (j + 1) / 2) * itensor::op(sites, "Sz", j) *
-            itensor::op(sites, "Id", j + 2) * itensor::op(sites, "Id", j + 4);
-      if (j == end - 5) {
-        hh += -mu * std::pow(-1, (j + 1 + 2) / 2) * itensor::op(sites, "Id", j) *
-              itensor::op(sites, "Sz", j + 2) * itensor::op(sites, "Id", j + 4);
-        hh += -mu * std::pow(-1, (j + 1 + 4) / 2) * itensor::op(sites, "Id", j) *
-              itensor::op(sites, "Id", j + 2) * itensor::op(sites, "Sz", j + 4);
-      }
-      auto G = itensor::expHermitian(hh, -tau);
-      gates.emplace_back(j, std::move(G));
-    }
-  }
-  void TimeGates(const int begin, const int end, const std::complex<double> tau,
-                 const itensor::SiteSet &sites, const ThreeSiteParam &param) {
-    const int step = 6;
-    const double J = param.value("J");
-    for (int j = begin; j < end - 4; j += step) {
-      std::cout << "j = (" << j << ", " << j + 2 << ", " << j + 4 << ")" << std::endl;
-      // This part acts on physical sites.
-      auto hh = J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Id", j + 2) *
-                itensor::op(sites, "Sm", j + 4);
-
-      hh += J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Id", j + 2) *
-            itensor::op(sites, "Sp", j + 4);
-
-      hh += -2 * J * itensor::op(sites, "Sp", j) * itensor::op(sites, "Sz", j + 2) *
-            itensor::op(sites, "Sm", j + 4);
-
-      hh += -2 * J * itensor::op(sites, "Sm", j) * itensor::op(sites, "Sz", j + 2) *
-            itensor::op(sites, "Sp", j + 4);
-
-      auto G = itensor::expHermitian(hh, -tau);
-      gates.emplace_back(j, std::move(G));
-    }
+                   ThermalRegion thermal_region = ThermalRegion::FullChain) {
+    initialize(sites, param, tau, mode, thermal_region);
   }
 
-  void EvolvePhysical(itensor::MPS &psi, const itensor::Args &args) {
-    for (auto &gate : gates) {
-      auto j = gate.i1;
-      auto &G = gate.G;
-      SwapNextSites(psi, j);     // swap j,j+1
-      SwapNextSites(psi, j + 3); // Now physical sites are j+1,j+2,j+3
-      psi.position(j + 2);
-      auto WF = psi(j + 1) * psi(j + 2) * psi(j + 3);
-      WF = G * WF;
-      WF /= itensor::norm(WF);
-      WF.noPrime();
-      {
-        auto [Uj1, Vj1] = itensor::factor(
-            WF, {itensor::siteIndex(psi, j + 1), itensor::leftLinkIndex(psi, j + 1)}, args);
-        auto indR = itensor::commonIndex(Uj1, Vj1);
-        auto [Uj2, Vj2] = itensor::factor(Vj1, {itensor::siteIndex(psi, j + 2), indR}, args);
-        psi.set(j + 1, Uj1);
-        psi.set(j + 2, Uj2);
-        psi.set(j + 3, Vj2);
-        SwapNextSites(psi, j + 3);
-        SwapNextSites(psi, j);
-      }
-    }
-  }
+  void evolve(itensor::MPS &psi, const itensor::Args &args) {
+    for (auto &gate : gates_) {
+      const int first_site = gate.first_site;
+      const auto &tensor = gate.tensor;
+      swap_next_sites(psi, first_site);
+      swap_next_sites(psi, first_site + 3);
+      psi.position(first_site + 2);
+      auto wavefunction = psi(first_site + 1) * psi(first_site + 2) * psi(first_site + 3);
+      wavefunction = tensor * wavefunction;
+      wavefunction /= itensor::norm(wavefunction);
+      wavefunction.noPrime();
 
-  void Evolve(itensor::MPS &psi, const itensor::Args &args) { EvolvePhysical(psi, args); }
-  void SwapNextSites(itensor::MPS &psi, const int j) {
-    psi.position(j);
-    auto WF = psi(j) * psi(j + 1);
-    auto [U, V] = itensor::factor(
-        WF, {itensor::siteIndex(psi, j + 1), itensor::leftLinkIndex(psi, j)}, {"Truncate=", false});
-    psi.set(j, U);
-    psi.set(j + 1, V);
-    psi.position(j);
+      auto [left_tensor, remaining_tensor] = itensor::factor(
+          wavefunction,
+          {itensor::siteIndex(psi, first_site + 1), itensor::leftLinkIndex(psi, first_site + 1)},
+          args);
+      const auto link = itensor::commonIndex(left_tensor, remaining_tensor);
+      auto [middle_tensor, right_tensor] =
+          itensor::factor(remaining_tensor, {itensor::siteIndex(psi, first_site + 2), link}, args);
+      psi.set(first_site + 1, left_tensor);
+      psi.set(first_site + 2, middle_tensor);
+      psi.set(first_site + 3, right_tensor);
+      swap_next_sites(psi, first_site + 3);
+      swap_next_sites(psi, first_site);
+    }
   }
 
 private:
-  std::vector<TGate> gates;
-  EvolutionMode mode_;
-  ThermalRegion region_;
+  struct Gate {
+    int first_site;
+    itensor::ITensor tensor;
+  };
+
+  void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+                  const std::complex<double> tau, EvolutionMode mode,
+                  ThermalRegion thermal_region) {
+    const int first_site = 1;
+    const int last_site = itensor::length(sites);
+    const int order = param.integer_value("TrotterOrder");
+
+    if (order == 1) {
+      std::cout << "First-order Trotter scheme" << std::endl;
+      append_gate_layer(first_site, last_site, tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site + 2, last_site, tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site + 4, last_site, tau, sites, param, mode, thermal_region);
+      return;
+    }
+
+    if (order == 2) {
+      std::cout << "Second-order Trotter scheme" << std::endl;
+      // Trotter gates from arxiv.org/abs/1901.04974, Eqs. (38) and (47).
+      append_gate_layer(first_site, last_site, 0.5 * tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site + 2, last_site, 0.5 * tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site + 4, last_site, tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site + 2, last_site, 0.5 * tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site, last_site, 0.5 * tau, sites, param, mode, thermal_region);
+      return;
+    }
+
+    throw std::invalid_argument("TrotterOrder must be 1 or 2");
+  }
+  void append_gate_layer(int first_site, int last_site, const std::complex<double> tau,
+                         const itensor::SiteSet &sites, const ThreeSiteParam &param,
+                         EvolutionMode mode, ThermalRegion thermal_region) {
+    constexpr int gate_width = 4;
+    constexpr int layer_spacing = 6;
+    const int center = itensor::length(sites) / 2;
+
+    for (int site = first_site; site <= last_site - gate_width; site += layer_spacing) {
+      if (mode == EvolutionMode::ImaginaryTime && thermal_region == ThermalRegion::RightHalf &&
+          site < center) {
+        continue;
+      }
+
+      auto hamiltonian = local_hamiltonian(sites, site, param.value("J"));
+      if (mode == EvolutionMode::ImaginaryTime) {
+        add_thermal_field_terms(hamiltonian, sites, site, last_site, center, param);
+      }
+      gates_.push_back({site, itensor::expHermitian(hamiltonian, -tau)});
+    }
+  }
+
+  static itensor::ITensor local_hamiltonian(const itensor::SiteSet &sites, int first_site,
+                                            double coupling) {
+    constexpr int physical_site_spacing = 2;
+    const int middle_site = first_site + physical_site_spacing;
+    const int last_site = middle_site + physical_site_spacing;
+    auto hamiltonian = coupling * itensor::op(sites, "Sp", first_site) *
+                       itensor::op(sites, "Id", middle_site) * itensor::op(sites, "Sm", last_site);
+    hamiltonian += coupling * itensor::op(sites, "Sm", first_site) *
+                   itensor::op(sites, "Id", middle_site) * itensor::op(sites, "Sp", last_site);
+    hamiltonian += -2 * coupling * itensor::op(sites, "Sp", first_site) *
+                   itensor::op(sites, "Sz", middle_site) * itensor::op(sites, "Sm", last_site);
+    hamiltonian += -2 * coupling * itensor::op(sites, "Sm", first_site) *
+                   itensor::op(sites, "Sz", middle_site) * itensor::op(sites, "Sp", last_site);
+    return hamiltonian;
+  }
+
+  static void add_thermal_field_terms(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
+                                      int first_site, int last_site, int center,
+                                      const ThreeSiteParam &param) {
+    constexpr int physical_site_spacing = 2;
+    const double field = first_site < center ? param.value("hL") * param.value("TL")
+                                             : param.value("hR") * param.value("TR");
+    add_field_term(hamiltonian, sites, first_site, first_site, field);
+    if (first_site == last_site - 4) {
+      add_field_term(hamiltonian, sites, first_site + physical_site_spacing, first_site, field);
+      add_field_term(hamiltonian, sites, first_site + 2 * physical_site_spacing, first_site, field);
+    }
+  }
+
+  static void add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
+                             int field_site, int first_site, double field) {
+    constexpr int physical_site_spacing = 2;
+    const int middle_site = first_site + physical_site_spacing;
+    const int last_site = middle_site + physical_site_spacing;
+    const double sign = std::pow(-1, (field_site + 1) / 2);
+    hamiltonian += -field * sign *
+                   itensor::op(sites, field_site == first_site ? "Sz" : "Id", first_site) *
+                   itensor::op(sites, field_site == middle_site ? "Sz" : "Id", middle_site) *
+                   itensor::op(sites, field_site == last_site ? "Sz" : "Id", last_site);
+  }
+
+  static void swap_next_sites(itensor::MPS &psi, int first_site) {
+    psi.position(first_site);
+    auto wavefunction = psi(first_site) * psi(first_site + 1);
+    auto [left_tensor, right_tensor] = itensor::factor(
+        wavefunction,
+        {itensor::siteIndex(psi, first_site + 1), itensor::leftLinkIndex(psi, first_site)},
+        {"Truncate=", false});
+    psi.set(first_site, left_tensor);
+    psi.set(first_site + 1, right_tensor);
+    psi.position(first_site);
+  }
+
+  std::vector<Gate> gates_;
 };
 
 void DisconnectChains(itensor::MPS &psi, const int j) {
@@ -615,7 +599,7 @@ int run_simulation(int argc, char *argv[]) {
 
     if (n < beta_steps_min) {
       std::cout << "Temperature evolution with H" << std::endl;
-      expH_beta.EvolvePhysical(psi, args0);
+      expH_beta.evolve(psi, args0);
       psi.orthogonalize(args);
       std::cout << "dot = " << dot + 1 << std::endl;
 
@@ -623,12 +607,12 @@ int run_simulation(int argc, char *argv[]) {
     } else if (n < beta_steps_max) {
       std::cout << "Temperature evolution with half-chain H" << std::endl;
       std::cout << "n/beta_steps_max = " << n << "/" << beta_steps_max << std::endl;
-      expH_beta_half.EvolvePhysical(psi, args0);
+      expH_beta_half.evolve(psi, args0);
       psi.orthogonalize(args);
       psi.normalize();
     } else {
       std::cout << "Time evolution" << std::endl;
-      expH.Evolve(psi, args);
+      expH.evolve(psi, args);
       psi.orthogonalize(args);
     }
     std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
