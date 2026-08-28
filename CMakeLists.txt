@@ -35,6 +35,7 @@ target_link_libraries(folded_xxz_observables PUBLIC
 )
 
 add_library(folded_xxz_simulation
+  src/initial_state.cc
   src/parameters.cc
   src/three_site_hamiltonian.cc
   src/trotter_evolution.cc
@@ -63,6 +64,10 @@ if(BUILD_TESTING)
   add_executable(trotter_evolution_test tests/trotter_evolution_test.cc)
   target_link_libraries(trotter_evolution_test PRIVATE folded_xxz::simulation)
   add_test(NAME trotter_evolution_test COMMAND trotter_evolution_test)
+
+  add_executable(initial_state_test tests/initial_state_test.cc)
+  target_link_libraries(initial_state_test PRIVATE folded_xxz::simulation)
+  add_test(NAME initial_state_test COMMAND initial_state_test)
 endif()
 
 find_program(CLANG_FORMAT_EXECUTABLE clang-format)
