@@ -169,8 +169,9 @@ class TrotterEvolution {
 public:
   TrotterEvolution(const itensor::SiteSet &sites, const ThreeSiteParam &param,
                    std::complex<double> tau, EvolutionMode mode,
-                   ThermalRegion thermal_region = ThermalRegion::FullChain) {
-    initialize(sites, param, tau, mode, thermal_region);
+                   ThermalRegion thermal_region = ThermalRegion::FullChain)
+      : site_count_(itensor::length(sites)), mode_(mode), thermal_region_(thermal_region) {
+    initialize(sites, param, tau);
   }
 
   void evolve(itensor::MPS &psi, const itensor::Args &args) {
@@ -207,56 +208,53 @@ private:
   };
 
   void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
-                  const std::complex<double> tau, EvolutionMode mode,
-                  ThermalRegion thermal_region) {
+                  const std::complex<double> tau) {
     const int first_site = 1;
-    const int last_site = itensor::length(sites);
     const int order = param.integer_value("TrotterOrder");
 
     if (order == 1) {
       std::cout << "First-order Trotter scheme" << std::endl;
-      append_gate_layer(first_site, last_site, tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site + 2, last_site, tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site + 4, last_site, tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site, tau, sites, param);
+      append_gate_layer(first_site + 2, tau, sites, param);
+      append_gate_layer(first_site + 4, tau, sites, param);
       return;
     }
 
     if (order == 2) {
       std::cout << "Second-order Trotter scheme" << std::endl;
       // Trotter gates from arxiv.org/abs/1901.04974, Eqs. (38) and (47).
-      append_gate_layer(first_site, last_site, 0.5 * tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site + 2, last_site, 0.5 * tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site + 4, last_site, tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site + 2, last_site, 0.5 * tau, sites, param, mode, thermal_region);
-      append_gate_layer(first_site, last_site, 0.5 * tau, sites, param, mode, thermal_region);
+      append_gate_layer(first_site, 0.5 * tau, sites, param);
+      append_gate_layer(first_site + 2, 0.5 * tau, sites, param);
+      append_gate_layer(first_site + 4, tau, sites, param);
+      append_gate_layer(first_site + 2, 0.5 * tau, sites, param);
+      append_gate_layer(first_site, 0.5 * tau, sites, param);
       return;
     }
 
     throw std::invalid_argument("TrotterOrder must be 1 or 2");
   }
-  void append_gate_layer(int first_site, int last_site, const std::complex<double> tau,
-                         const itensor::SiteSet &sites, const ThreeSiteParam &param,
-                         EvolutionMode mode, ThermalRegion thermal_region) {
+  void append_gate_layer(int first_site, const std::complex<double> tau,
+                         const itensor::SiteSet &sites, const ThreeSiteParam &param) {
     constexpr int gate_width = 4;
     constexpr int layer_spacing = 6;
-    const int center = itensor::length(sites) / 2;
+    const int center = site_count_ / 2;
 
-    for (int site = first_site; site <= last_site - gate_width; site += layer_spacing) {
-      if (mode == EvolutionMode::ImaginaryTime && thermal_region == ThermalRegion::RightHalf &&
+    for (int site = first_site; site <= site_count_ - gate_width; site += layer_spacing) {
+      if (mode_ == EvolutionMode::ImaginaryTime && thermal_region_ == ThermalRegion::RightHalf &&
           site < center) {
         continue;
       }
 
       auto hamiltonian = local_hamiltonian(sites, site, param.value("J"));
-      if (mode == EvolutionMode::ImaginaryTime) {
-        add_thermal_field_terms(hamiltonian, sites, site, last_site, center, param);
+      if (mode_ == EvolutionMode::ImaginaryTime) {
+        add_thermal_field_terms(hamiltonian, sites, site, center, param);
       }
       gates_.push_back({site, itensor::expHermitian(hamiltonian, -tau)});
     }
   }
 
-  static itensor::ITensor local_hamiltonian(const itensor::SiteSet &sites, int first_site,
-                                            double coupling) {
+  itensor::ITensor local_hamiltonian(const itensor::SiteSet &sites, int first_site,
+                                     double coupling) const {
     constexpr int physical_site_spacing = 2;
     const int middle_site = first_site + physical_site_spacing;
     const int last_site = middle_site + physical_site_spacing;
@@ -271,21 +269,20 @@ private:
     return hamiltonian;
   }
 
-  static void add_thermal_field_terms(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
-                                      int first_site, int last_site, int center,
-                                      const ThreeSiteParam &param) {
+  void add_thermal_field_terms(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
+                               int first_site, int center, const ThreeSiteParam &param) const {
     constexpr int physical_site_spacing = 2;
     const double field = first_site < center ? param.value("hL") * param.value("TL")
                                              : param.value("hR") * param.value("TR");
     add_field_term(hamiltonian, sites, first_site, first_site, field);
-    if (first_site == last_site - 4) {
+    if (first_site == site_count_ - 4) {
       add_field_term(hamiltonian, sites, first_site + physical_site_spacing, first_site, field);
       add_field_term(hamiltonian, sites, first_site + 2 * physical_site_spacing, first_site, field);
     }
   }
 
-  static void add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
-                             int field_site, int first_site, double field) {
+  void add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites, int field_site,
+                      int first_site, double field) const {
     constexpr int physical_site_spacing = 2;
     const int middle_site = first_site + physical_site_spacing;
     const int last_site = middle_site + physical_site_spacing;
@@ -296,7 +293,7 @@ private:
                    itensor::op(sites, field_site == last_site ? "Sz" : "Id", last_site);
   }
 
-  static void swap_next_sites(itensor::MPS &psi, int first_site) {
+  void swap_next_sites(itensor::MPS &psi, int first_site) const {
     psi.position(first_site);
     auto wavefunction = psi(first_site) * psi(first_site + 1);
     auto [left_tensor, right_tensor] = itensor::factor(
@@ -308,6 +305,9 @@ private:
     psi.position(first_site);
   }
 
+  const int site_count_;
+  const EvolutionMode mode_;
+  const ThermalRegion thermal_region_;
   std::vector<Gate> gates_;
 };
 
