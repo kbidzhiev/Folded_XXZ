@@ -88,7 +88,6 @@ state but does not perform positive-time real-time evolution.
 | `dbeta` | `0.01` | Imaginary-time (inverse-temperature) step. |
 | `TL`, `TR` | `100`, `5` | Left and right temperatures used for state preparation. |
 | `hL`, `hR` | `0`, `0` | Left/right staggered-field amplitudes during thermal preparation. |
-| `PBC` | `0` | Use periodic boundary terms when nonzero. |
 | `max_bond` | `4000` | Maximum MPS bond dimension. |
 | `trunc` | `1e-10` | Real-time truncation cutoff. |
 | `trunc0` | `1e-10` | Imaginary-time truncation cutoff. |

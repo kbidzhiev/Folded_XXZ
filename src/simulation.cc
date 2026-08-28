@@ -92,8 +92,6 @@ class ThreeSiteParam : public Parameters {
 public:
   ThreeSiteParam() {
     define("N", 10); // Length of the chain N-n
-    define("begin", 1);
-    define("end", 10);
     define("J", 1.0);
     define("tau", 0.01); // time step for the unitary evolution
     define("dbeta", 0.01);
@@ -119,7 +117,6 @@ public:
     define("TrotterOrder", 2);
     define("antal", 0);
     define("XXZ", 0);
-    define("PBC", 0);
     define("beta", 1);
     define("Energy_beta", 1);
     define("write_wf", 0); // 0->do not write the w.-f. to disk. if dt>0 => w.-f. to disk
@@ -133,8 +130,6 @@ public:
       : site_count_(itensor::length(sites)), center_(site_count_ / 2), terms_(sites) {
     add_field_terms(param);
     add_bulk_terms(param.value("J"));
-    if (param.value("PBC") != 0.0)
-      add_periodic_terms(param.value("J"));
   }
   int center() const { return center_; }
   itensor::MPO mpo() const { return itensor::toMPO(terms_); }
@@ -162,16 +157,15 @@ private:
       add_interaction_terms(left, left + 2, left + 4, coupling);
     }
   }
-  void add_periodic_terms(double coupling) {
-    add_interaction_terms(site_count_ - 3, site_count_ - 1, 1, coupling);
-    add_interaction_terms(site_count_ - 1, 1, 3, coupling);
-  }
   const int site_count_;
   const int center_;
   itensor::AutoMPO terms_;
 };
 
-class TrotterExp {
+enum class EvolutionMode { ImaginaryTime, RealTime };
+enum class ThermalRegion { FullChain, RightHalf };
+
+class TrotterEvolution {
 public:
   struct TGate {
     int i1 = 0;
@@ -179,18 +173,20 @@ public:
     TGate() {}
     TGate(int i1_, itensor::ITensor G_) : i1(i1_), G(G_) {}
   };
-  TrotterExp(const itensor::SiteSet &sites, const ThreeSiteParam &param,
-             const std::complex<double> tau) {
+  TrotterEvolution(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+                   std::complex<double> tau, EvolutionMode mode,
+                   ThermalRegion region = ThermalRegion::FullChain)
+      : mode_(mode), region_(region) {
     initialize(sites, param, tau);
   };
   void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
                   const std::complex<double> tau) {
     const int begin = 1;
-    const int end = param.value("end");
-    const int order = param.value("TrotterOrder");
+    const int end = itensor::length(sites);
+    const int order = param.integer_value("TrotterOrder");
     if (order == 1) {
       std::cout << "First-order Trotter scheme" << std::endl;
-      if (std::imag(tau) < 1e-8) {
+      if (mode_ == EvolutionMode::ImaginaryTime) {
         std::cout << "Temperature evolution" << std::endl;
         TemperatureGates(begin, end, tau, sites, param);
         TemperatureGates(begin + 2, end, tau, sites, param);
@@ -206,7 +202,7 @@ public:
       double begin2 = begin + 2;
       double begin4 = begin + 4;
       // Trotter gates from arxiv.org/abs/1901.04974, Eqs. (38) and (47).
-      if (std::imag(tau) < 1e-8) {
+      if (mode_ == EvolutionMode::ImaginaryTime) {
         std::cout << "Temperature evolution" << std::endl;
         TemperatureGates(begin0, end, 0.5 * tau, sites, param); // A
         TemperatureGates(begin2, end, 0.5 * tau, sites, param); // B
@@ -231,11 +227,10 @@ public:
     const double hR = param.value("hR");
     const double TL = param.value("TL");
     const double TR = param.value("TR");
-    const int h_half = param.value("begin");
     const int dot = itensor::length(sites) / 2;
     std::cout << "Dot in Trotter evolution = " << dot << std::endl;
     for (int j = begin; j <= end - 5; j += step) {
-      if (h_half > 5 && j < dot) { //&& dot < j + step - 1
+      if (region_ == ThermalRegion::RightHalf && j < dot) {
         std::cout << "j = [" << j << ", " << j + 2 << ", " << j + 4 << "]" << std::endl;
         continue; // Skip this gate and continue with the next triplet.
       }
@@ -328,6 +323,8 @@ public:
 
 private:
   std::vector<TGate> gates;
+  EvolutionMode mode_;
+  ThermalRegion region_;
 };
 
 void DisconnectChains(itensor::MPS &psi, const int j) {
@@ -468,20 +465,17 @@ int run_simulation(int argc, char *argv[]) {
            << "\t Q2plus \t Q2minus \t time \t \n";
   }
   std::cout << "Trotter Gates for beta " << std::endl;
-  param.set("begin", 1);
-  param.set("end", N);
   const double dbeta = param.value("dbeta");
-  TrotterExp expH_beta(sites, param, 0.5 * dbeta);
+  TrotterEvolution expH_beta(sites, param, 0.5 * dbeta, EvolutionMode::ImaginaryTime);
 
   std::cout << "Trotter Gates Half for beta " << std::endl;
-  param.set("begin", dot + 1);
-  TrotterExp expH_beta_half(sites, param, 0.5 * dbeta);
+  TrotterEvolution expH_beta_half(sites, param, 0.5 * dbeta, EvolutionMode::ImaginaryTime,
+                                  ThermalRegion::RightHalf);
 
   std::cout << "Trotter Gates for tau" << std::endl;
-  param.set("begin", 1);
   param.set("hL", 0);
   param.set("hR", 0);
-  TrotterExp expH(sites, param, itensor::Cplx_i * 1.0 * tau);
+  TrotterEvolution expH(sites, param, itensor::Cplx_i * tau, EvolutionMode::RealTime);
 
   // Prepare the biased thermal state.
   const double TL = param.value("TL");
@@ -491,7 +485,6 @@ int run_simulation(int argc, char *argv[]) {
   const int beta_steps_min = beta_min / param.value("dbeta");
   const int beta_steps_max = beta_max / param.value("dbeta");
   const double n_steps = param.value("T") / param.value("tau");
-  param.set("begin", 1);
   param.set("hL", 0);
   param.set("hR", 0);
   std::cout << "Finished preparing half-chain gates" << std::endl;
