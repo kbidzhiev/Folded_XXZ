@@ -34,14 +34,20 @@ target_link_libraries(folded_xxz_observables PUBLIC
   LAPACK::LAPACK
 )
 
-add_executable(3siteHam
-  src/main.cc
+add_library(folded_xxz_simulation
   src/parameters.cc
-  src/simulation.cc
   src/three_site_hamiltonian.cc
   src/trotter_evolution.cc
 )
-target_link_libraries(3siteHam PRIVATE folded_xxz::observables)
+add_library(folded_xxz::simulation ALIAS folded_xxz_simulation)
+target_compile_features(folded_xxz_simulation PUBLIC cxx_std_17)
+target_link_libraries(folded_xxz_simulation PUBLIC folded_xxz::observables)
+
+add_executable(3siteHam
+  src/main.cc
+  src/simulation.cc
+)
+target_link_libraries(3siteHam PRIVATE folded_xxz::simulation)
 
 include(CTest)
 
@@ -55,11 +61,7 @@ if(BUILD_TESTING)
   add_test(NAME simulation_schedule_test COMMAND simulation_schedule_test)
 
   add_executable(trotter_evolution_test tests/trotter_evolution_test.cc)
-  target_sources(trotter_evolution_test PRIVATE
-    src/parameters.cc
-    src/trotter_evolution.cc
-  )
-  target_link_libraries(trotter_evolution_test PRIVATE folded_xxz::observables)
+  target_link_libraries(trotter_evolution_test PRIVATE folded_xxz::simulation)
   add_test(NAME trotter_evolution_test COMMAND trotter_evolution_test)
 endif()
 
