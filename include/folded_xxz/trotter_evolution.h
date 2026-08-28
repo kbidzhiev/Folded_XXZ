@@ -16,7 +16,8 @@ public:
                    std::complex<double> tau, EvolutionMode mode,
                    ThermalRegion thermal_region = ThermalRegion::FullChain);
 
-  void evolve(itensor::MPS &psi, const itensor::Args &args);
+  void evolve(itensor::MPS &psi, const itensor::Args &args) const;
+  std::size_t gate_count() const;
 
 private:
   struct Gate {

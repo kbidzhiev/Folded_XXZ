@@ -53,6 +53,14 @@ if(BUILD_TESTING)
   add_executable(simulation_schedule_test tests/simulation_schedule_test.cc)
   target_link_libraries(simulation_schedule_test PRIVATE folded_xxz::observables)
   add_test(NAME simulation_schedule_test COMMAND simulation_schedule_test)
+
+  add_executable(trotter_evolution_test tests/trotter_evolution_test.cc)
+  target_sources(trotter_evolution_test PRIVATE
+    src/parameters.cc
+    src/trotter_evolution.cc
+  )
+  target_link_libraries(trotter_evolution_test PRIVATE folded_xxz::observables)
+  add_test(NAME trotter_evolution_test COMMAND trotter_evolution_test)
 endif()
 
 find_program(CLANG_FORMAT_EXECUTABLE clang-format)

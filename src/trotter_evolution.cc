@@ -11,10 +11,12 @@ TrotterEvolution::TrotterEvolution(const itensor::SiteSet &sites, const ThreeSit
   build_gates(sites, param, tau);
 }
 
-void TrotterEvolution::evolve(itensor::MPS &psi, const itensor::Args &args) {
+void TrotterEvolution::evolve(itensor::MPS &psi, const itensor::Args &args) const {
   for (const auto &gate : gates_)
     apply_gate(psi, gate, args);
 }
+
+std::size_t TrotterEvolution::gate_count() const { return gates_.size(); }
 
 void TrotterEvolution::build_gates(const itensor::SiteSet &sites, const ThreeSiteParam &param,
                                    const std::complex<double> tau) {
