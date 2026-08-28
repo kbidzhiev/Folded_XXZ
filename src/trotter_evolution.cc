@@ -74,9 +74,10 @@ void TrotterEvolution::append_gate_layer(int first_site, const std::complex<doub
     if (mode_ == EvolutionMode::ImaginaryTime && thermal_region_ == ThermalRegion::RightHalf &&
         site < center)
       continue;
-    auto hamiltonian = local_hamiltonian(sites, site, param.value("J"));
+    const double coupling = param.value("J");
+    auto hamiltonian = local_hamiltonian(sites, site, coupling);
     if (mode_ == EvolutionMode::ImaginaryTime)
-      add_thermal_field_terms(hamiltonian, sites, site, center, param);
+      add_thermal_field_terms(hamiltonian, sites, site, center, coupling, param);
     gates_.push_back({site, itensor::expHermitian(hamiltonian, -tau)});
   }
 }
@@ -98,22 +99,24 @@ itensor::ITensor TrotterEvolution::local_hamiltonian(const itensor::SiteSet &sit
 
 void TrotterEvolution::add_thermal_field_terms(itensor::ITensor &hamiltonian,
                                                const itensor::SiteSet &sites, int first_site,
-                                               int center, const ThreeSiteParam &param) const {
+                                               int center, double coupling,
+                                               const ThreeSiteParam &param) const {
   const double field = first_site < center ? param.value("hL") * param.value("TL")
                                            : param.value("hR") * param.value("TR");
-  add_field_term(hamiltonian, sites, first_site, first_site, field);
+  add_field_term(hamiltonian, sites, first_site, first_site, coupling, field);
   if (first_site == site_count_ - 4) {
-    add_field_term(hamiltonian, sites, first_site + 2, first_site, field);
-    add_field_term(hamiltonian, sites, first_site + 4, first_site, field);
+    add_field_term(hamiltonian, sites, first_site + 2, first_site, coupling, field);
+    add_field_term(hamiltonian, sites, first_site + 4, first_site, coupling, field);
   }
 }
 
 void TrotterEvolution::add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
-                                      int field_site, int first_site, double field) const {
+                                      int field_site, int first_site, double coupling,
+                                      double field) const {
   const int middle_site = first_site + 2;
   const int last_site = middle_site + 2;
   const double sign = std::pow(-1, (field_site + 1) / 2);
-  hamiltonian += -field * sign *
+  hamiltonian += -coupling * field * sign *
                  itensor::op(sites, field_site == first_site ? "Sz" : "Id", first_site) *
                  itensor::op(sites, field_site == middle_site ? "Sz" : "Id", middle_site) *
                  itensor::op(sites, field_site == last_site ? "Sz" : "Id", last_site);

@@ -33,9 +33,10 @@ private:
   itensor::ITensor local_hamiltonian(const itensor::SiteSet &sites, int first_site,
                                      double coupling) const;
   void add_thermal_field_terms(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites,
-                               int first_site, int center, const ThreeSiteParam &param) const;
+                               int first_site, int center, double coupling,
+                               const ThreeSiteParam &param) const;
   void add_field_term(itensor::ITensor &hamiltonian, const itensor::SiteSet &sites, int field_site,
-                      int first_site, double field) const;
+                      int first_site, double coupling, double field) const;
   void swap_next_sites(itensor::MPS &psi, int first_site) const;
 
   const int site_count_;
