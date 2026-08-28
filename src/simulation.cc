@@ -321,6 +321,251 @@ void DisconnectChains(itensor::MPS &psi, const int j) {
   psi.orthogonalize();
 }
 
+itensor::MPS create_initial_state(const itensor::SiteSet &sites) {
+  const int site_count = itensor::length(sites);
+  itensor::MPS psi(sites);
+  for (int first_site = 1; first_site < site_count; first_site += 2) {
+    const auto left_site = sites(first_site);
+    const auto right_site = sites(first_site + 1);
+    itensor::ITensor wavefunction;
+
+    if (first_site == 1) {
+      const auto right_link =
+          itensor::commonIndex(psi(first_site + 1), psi(first_site + 2), "Link");
+      wavefunction = itensor::ITensor(left_site, right_site, right_link);
+      psi.ref(first_site) = itensor::ITensor(left_site);
+      psi.ref(first_site + 1) = itensor::ITensor(right_site, right_link);
+      wavefunction.set(left_site(1), right_site(2), right_link(1), itensor::ISqrt2);
+      wavefunction.set(left_site(2), right_site(1), right_link(1), -itensor::ISqrt2);
+    } else if (first_site == site_count - 1) {
+      const auto left_link = itensor::commonIndex(psi(first_site - 1), psi(first_site), "Link");
+      wavefunction = itensor::ITensor(left_link, left_site, right_site);
+      psi.ref(first_site) = itensor::ITensor(left_site, left_link);
+      psi.ref(first_site + 1) = itensor::ITensor(right_site);
+      wavefunction.set(left_link(1), left_site(1), right_site(2), itensor::ISqrt2);
+      wavefunction.set(left_link(1), left_site(2), right_site(1), -itensor::ISqrt2);
+    } else {
+      const auto left_link = itensor::commonIndex(psi(first_site - 1), psi(first_site), "Link");
+      const auto right_link =
+          itensor::commonIndex(psi(first_site + 1), psi(first_site + 2), "Link");
+      wavefunction = itensor::ITensor(left_link, left_site, right_site, right_link);
+      psi.ref(first_site) = itensor::ITensor(left_site, left_link);
+      psi.ref(first_site + 1) = itensor::ITensor(right_site, right_link);
+      wavefunction.set(left_link(1), left_site(1), right_site(2), right_link(1), itensor::ISqrt2);
+      wavefunction.set(left_link(1), left_site(2), right_site(1), right_link(1), -itensor::ISqrt2);
+    }
+
+    itensor::ITensor singular_values;
+    itensor::svd(wavefunction, psi.ref(first_site), singular_values, psi.ref(first_site + 1));
+    psi.ref(first_site) *= singular_values;
+  }
+  return psi;
+}
+
+void evolve_step(itensor::MPS &psi, int step, int beta_steps_min, int beta_steps_max, int center,
+                 const itensor::Args &real_time_args, const itensor::Args &thermal_args,
+                 TrotterEvolution &thermal_evolution, TrotterEvolution &half_thermal_evolution,
+                 TrotterEvolution &real_time_evolution) {
+  if (step < beta_steps_min) {
+    std::cout << "Temperature evolution with H" << std::endl;
+    thermal_evolution.evolve(psi, thermal_args);
+    psi.orthogonalize(real_time_args);
+    std::cout << "dot = " << center + 1 << std::endl;
+    psi.normalize();
+    return;
+  }
+
+  if (step < beta_steps_max) {
+    std::cout << "Temperature evolution with half-chain H" << std::endl;
+    std::cout << "n/beta_steps_max = " << step << "/" << beta_steps_max << std::endl;
+    half_thermal_evolution.evolve(psi, thermal_args);
+    psi.orthogonalize(real_time_args);
+    psi.normalize();
+    return;
+  }
+
+  std::cout << "Time evolution" << std::endl;
+  real_time_evolution.evolve(psi, real_time_args);
+  psi.orthogonalize(real_time_args);
+}
+
+struct OutputFiles {
+  std::ofstream entropy;
+  std::ofstream singular_values;
+  std::ofstream entropy_profile;
+  std::ofstream magnetization;
+  std::ofstream average_magnetization;
+  std::ofstream energy_beta;
+  std::ofstream energy_profile;
+  std::ofstream q1minus_profile;
+  std::ofstream q2_profile;
+};
+
+OutputFiles open_output_files(const ThreeSiteParam &param, int center) {
+  OutputFiles files;
+  constexpr auto mode = std::ofstream::out;
+
+  if (param.value("Entropy") != 0) {
+    files.entropy.open("Entropy_center.dat", mode);
+    files.entropy.precision(15);
+    files.entropy << "#time \t Entropy(dot) \t BondDim(dot) \t MaxBondDim\n";
+  }
+  if (param.value("SVD_spec") > 0) {
+    files.singular_values.open("SVD_spec.dat", mode);
+    files.singular_values.precision(15);
+    files.singular_values << "#Position=" << center << "\t<SVD_spectrum>\t\ttime\n";
+  }
+  if (param.value("Energy_beta") > 0) {
+    files.energy_beta.open("Energy_beta.dat", mode);
+    files.energy_beta.precision(15);
+    files.energy_beta << "beta \t Energy \n";
+  }
+  if (param.value("Eprof") > 0) {
+    files.entropy_profile.open("Entropy_profile.dat", mode);
+    files.entropy_profile.precision(15);
+    files.entropy_profile << "#Position=i-" << center << std::setw(16) << "\t Entropy(i)"
+                          << std::setw(16)
+                          << "\t Entropy_sqrt \t Entropy_state1 \t time \t\t Bond.Dim(i)\n";
+  }
+  if (param.value("Sz") > 0) {
+    files.magnetization.open("Sz_profile.dat", mode);
+    files.magnetization.precision(15);
+    files.magnetization << "#Position=i-\t<Sz_i>\t\t(-1)^i<Sz_i>\t\t\ttime\n";
+
+    files.average_magnetization.open("Sz_average_profile.dat", mode);
+    files.average_magnetization.precision(15);
+    files.average_magnetization << "#Position=i-\t0.5<Sz_2+1i> + 0.5<Sz_2+1i>\t\t\ttime\n";
+  }
+  if (param.value("EnergyProf") > 0) {
+    files.energy_profile.open("Energy_profile.dat", mode);
+    files.energy_profile.precision(15);
+    files.energy_profile << "#Position=i-\t<Ham_i>\t" << center << "\t\ttime(or beta)\n";
+
+    files.q1minus_profile.open("Q1minus_profile.dat", mode);
+    files.q1minus_profile.precision(15);
+    files.q1minus_profile << "#Position=i-\t<Q1minus_i>\t" << center << "\t\ttime(or beta)\n";
+  }
+  if (param.value("Q2Prof") > 0) {
+    files.q2_profile.open("Q2_profile.dat", mode);
+    files.q2_profile.precision(15);
+    files.q2_profile << "#Position=i-" << center << std::setw(16) << "\t Entropy(i)"
+                     << std::setw(16) << "\t Q2plus \t Q2minus \t time \t \n";
+  }
+  return files;
+}
+
+void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
+                       const itensor::MPO &hamiltonian, const ThreeSiteParam &param,
+                       OutputFiles &output_files, int step, double time, int total_steps,
+                       int beta_steps, int site_count, int center, double tau) {
+  std::vector<double> singular_values;
+  if (param.value("Entropy") != 0) {
+    const double entropy = Entropy(psi, center, singular_values, 1);
+    output_files.entropy << time << "\t" << std::setw(16) << std::setfill('0') << entropy << "\t"
+                         << BondDim(psi, center) << "\t" << itensor::maxLinkDim(psi) << std::endl;
+
+    if (param.value("SVD_spec") > 0 && step % int(param.value("SVD_spec") / tau) == 0) {
+      output_files.singular_values << "\"t=" << time << "\"" << std::endl;
+      for (int index = 0; index < static_cast<int>(singular_values.size()); ++index) {
+        output_files.singular_values << index + 1 << "\t" << singular_values[index] << "\t\t"
+                                     << time << std::endl;
+      }
+      if (step < total_steps)
+        output_files.singular_values << std::endl << std::endl;
+    }
+  }
+
+  if (param.value("Eprof") > 0 && step % int(param.value("Eprof") / tau) == 0) {
+    output_files.entropy_profile << "\"t=" << time << "\"" << std::endl;
+    for (int site = 1; site < site_count; ++site) {
+      const double entropy = Entropy(psi, site, singular_values, 1);
+      output_files.entropy_profile
+          << site + 0.5 - center << "\t" << std::setw(16) << std::setfill('0') << entropy << "\t"
+          << std::setw(4) << std::setfill('0') << BondDim(psi, site) << "\t" << time << std::endl;
+    }
+    if (step < total_steps)
+      output_files.entropy_profile << "\n\n";
+  }
+
+  if (param.value("Energy_beta") > 0) {
+    double local_energy = 0;
+    double count = 0;
+    const int half_width = (site_count / 4) % 2 == 0 ? site_count / 4 : site_count / 4 + 1;
+    for (int site = center + 1 - half_width; site < center + 1 + half_width; site += 2) {
+      local_energy += Energy(psi, sites, site);
+      ++count;
+    }
+    local_energy /= count;
+
+    output_files.energy_beta << time << "\t"
+                             << std::real(itensor::innerC(psi, hamiltonian, psi)) /
+                                    std::real(itensor::innerC(psi, psi))
+                             << "\t" << local_energy << "\t" << itensor::maxLinkDim(psi)
+                             << std::endl;
+  }
+
+  if (param.value("EnergyProf") > 0 && beta_steps <= step &&
+      step % int(param.value("EnergyProf") / tau) == 0) {
+    output_files.energy_profile << "\"t=" << time << "\"" << std::endl;
+    output_files.q1minus_profile << "\"t=" << time << "\"" << std::endl;
+    for (int site = 1; site <= site_count - 5; site += 2) {
+      const std::complex<double> q1 = Q1(psi, sites, site);
+      output_files.energy_profile << site / 2 - center / 2 + 1 << "\t" << std::real(q1) << "\t"
+                                  << time << std::endl;
+      output_files.q1minus_profile << site / 2 - center / 2 + 1 << "\t" << std::imag(q1) << "\t"
+                                   << time << std::endl;
+    }
+    output_files.energy_profile << "\n\n";
+    output_files.q1minus_profile << "\n\n";
+  }
+
+  if (param.value("Q2Prof") > 0 && beta_steps <= step &&
+      step % int(param.value("EnergyProf") / tau) == 0) {
+    output_files.q2_profile << "\"t=" << time << "\"" << std::endl;
+    for (int site = 1; site <= site_count - 9; site += 2) {
+      const std::complex<double> q2 = Q2(psi, sites, site);
+      output_files.q2_profile << site / 2 - center / 2 + 1 << "\t" << std::real(q2) << "\t"
+                              << std::imag(q2) << "\t" << time << std::endl;
+    }
+    output_files.q2_profile << "\n\n";
+  }
+
+  if (param.value("Sz") > 0 && beta_steps <= step && step % int(param.value("Sz") / tau) == 0) {
+    output_files.magnetization << "\"t=" << time << "\"" << std::endl;
+    double total_magnetization = 0;
+    double left_magnetization = 0;
+    double right_magnetization = 0;
+    double center_magnetization = 0;
+    double previous_magnetization = 0;
+    for (int site = 1; site <= site_count; site += 2) {
+      const double magnetization = Sz(psi, sites, site);
+      total_magnetization += magnetization;
+      if (site < center)
+        left_magnetization += magnetization;
+      if (site > center)
+        right_magnetization += magnetization;
+      if (site == center)
+        center_magnetization += magnetization;
+      output_files.magnetization << site / 2 - center / 2 + 1 << "\t" << magnetization << "\t"
+                                 << std::pow(-1, (site + 1) / 2) * magnetization << "\t" << time
+                                 << std::endl;
+
+      if (((site + 1) / 2) % 2 == 1) {
+        previous_magnetization = magnetization;
+      } else {
+        output_files.average_magnetization << site / 2 - center / 2 + 1 << "\t"
+                                           << 0.5 * (magnetization + previous_magnetization) << "\t"
+                                           << time << std::endl;
+      }
+    }
+    output_files.magnetization << "\n\n";
+    output_files.average_magnetization << "\n\n";
+    std::cout << "\n<Sz_left>=" << left_magnetization << "\t<Sz_right>=" << right_magnetization
+              << "\t<Sz_DOT>=" << center_magnetization << "\t<Sz_tot>=" << total_magnetization
+              << std::endl;
+  }
+}
+
 int run_simulation(int argc, char *argv[]) {
   LOG_DURATION("MAIN");
   ThreeSiteParam param;
@@ -332,50 +577,14 @@ int run_simulation(int argc, char *argv[]) {
   const int N = 2 * param.integer_value("N");
 
   itensor::SpinHalf sites(N, {"ConserveQNs=", false}); // HILBERT_SPACE = itensor::SpinHalf
-  itensor::MPS psi;
   std::cout << "Constructing Hamiltonian" << std::endl;
   ThreeSiteHamiltonian hamiltonian(sites, param);
   const int dot = hamiltonian.center();
   auto H = hamiltonian.mpo();
   std::cout << "Finished constructing Hamiltonian" << std::endl;
-  auto energy(0);
-  psi = itensor::MPS(sites);
+  auto psi = create_initial_state(sites);
   std::cout << "N= " << N << std::endl;
-  for (int i = 1; i < N; i += 2) { // N = 2L, where L is the original system size
-    // Odd sites are physical sites and even sites are their ancillas.
-    auto il = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // Just to initialize the variable;
-    auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // Just to initialize the variable;
-    auto s1 = sites(i);
-    auto s2 = sites(i + 1);
-    auto wf = itensor::ITensor(); // Just to initialize the variable;
-    if (i == 1) {
-      ir = itensor::commonIndex(psi(i + 1), psi(i + 2), "Link");
-      wf = itensor::ITensor(s1, s2, ir);
-      psi.ref(i) = itensor::ITensor(s1);
-      psi.ref(i + 1) = itensor::ITensor(s2, ir);
-      wf.set(s1(1), s2(2), ir(1), itensor::ISqrt2); // | +- > - | -+ > state
-      wf.set(s1(2), s2(1), ir(1), -itensor::ISqrt2);
-    } else if (i == N - 1) {
-      il = itensor::commonIndex(psi(i - 1), psi(i), "Link");
-      wf = itensor::ITensor(il, s1, s2);
-      psi.ref(i) = itensor::ITensor(s1, il);
-      psi.ref(i + 1) = itensor::ITensor(s2);
-      wf.set(il(1), s1(1), s2(2), itensor::ISqrt2); // | +- > - | -+ > state
-      wf.set(il(1), s1(2), s2(1), -itensor::ISqrt2);
-    } else {
-      il = itensor::commonIndex(psi(i - 1), psi(i), "Link");
-      ir = itensor::commonIndex(psi(i + 1), psi(i + 2), "Link");
-      wf = itensor::ITensor(il, s1, s2, ir);
-      psi.ref(i) = itensor::ITensor(s1, il);
-      psi.ref(i + 1) = itensor::ITensor(s2, ir);
-      wf.set(il(1), s1(1), s2(2), ir(1), itensor::ISqrt2); // | +- > - | -+ > state
-      wf.set(il(1), s1(2), s2(1), ir(1), -itensor::ISqrt2);
-    }
-    itensor::ITensor D;
-    itensor::svd(wf, psi.ref(i), D, psi.ref(i + 1)); // put the prepared ancilla "wf" to the |PSI>
-    psi.ref(i) *= D;
-  }
-  energy = itensor::inner(psi, H, psi); //<psi|H0|psi>
+  const auto energy = itensor::inner(psi, H, psi);
   std::cout << "2. Initial energy=" << energy << " .Norm = " << itensor::inner(psi, psi)
             << std::endl;
 
@@ -389,65 +598,7 @@ int run_simulation(int argc, char *argv[]) {
                              param.integer_value("max_bond"), "Normalize",
                              false); // arguments for IMAGINARY time == initial temperature state
 
-  // Output files for enabled observables.
-  std::ofstream ent, spec, eprof, sz, sz_avrg, energy_beta, energy_prof, q1minus_prof,
-      q2prof; // here I'm defining output streams == files
-  std::ios_base::openmode mode;
-  mode = std::ofstream::out; // Erase previous file (if present)
-
-  double dt = param.value("Entropy");
-  if (dt != 0) { // Entropy in the center of the chain
-    ent.open("Entropy_center.dat", mode);
-    ent.precision(15);
-    ent << "#time \t Entropy(dot) \t BondDim(dot) \t MaxBondDim\n";
-  }
-  dt = param.value("SVD_spec");
-  if (dt > 0) { // SVD Spectrum on central bond
-    spec.open("SVD_spec.dat", mode);
-    spec.precision(15);
-    spec << "#Position=" << dot << "\t<SVD_spectrum>\t\ttime\n";
-  }
-  dt = param.value("Energy_beta");
-  if (dt > 0) { // total Energy vs beta. plus std::max bond dim at the 3rd column
-    energy_beta.open("Energy_beta.dat", mode);
-    energy_beta.precision(15);
-    energy_beta << "beta \t Energy \n";
-  }
-  dt = param.value("Eprof");
-  if (dt > 0) { // Full entropy profile
-    eprof.open("Entropy_profile.dat", mode);
-    eprof.precision(15);
-    eprof << "#Position=i-" << dot << std::setw(16) << "\t Entropy(i)" << std::setw(16)
-          << "\t Entropy_sqrt \t Entropy_state1 \t time \t\t Bond.Dim(i)\n";
-  }
-  dt = param.value("Sz");
-  if (dt > 0) { // Full magnetization profile
-    sz.open("Sz_profile.dat", mode);
-    sz.precision(15);
-    sz << "#Position=i-" << "\t<Sz_i>\t" << "\t(-1)^i<Sz_i>\t" << "\t\ttime\n";
-
-    sz_avrg.open("Sz_average_profile.dat", mode);
-    sz_avrg.precision(15);
-    sz_avrg << "#Position=i-" << "\t0.5<Sz_2+1i> + 0.5<Sz_2+1i>\t" << "\t\ttime\n";
-  }
-  dt = param.value("EnergyProf");
-  if (dt > 0) { // Energy profile
-    energy_prof.open("Energy_profile.dat", mode);
-    energy_prof.precision(15);
-    energy_prof << "#Position=i-" << "\t<Ham_i>\t" << dot << "\t\ttime(or beta)\n";
-
-    // Q1minus profile is initialized with the energy profile.
-    q1minus_prof.open("Q1minus_profile.dat", mode);
-    q1minus_prof.precision(15);
-    q1minus_prof << "#Position=i-" << "\t<Q1minus_i>\t" << dot << "\t\ttime(or beta)\n";
-  }
-  dt = param.value("Q2Prof");
-  if (dt > 0) { // Full entropy profile
-    q2prof.open("Q2_profile.dat", mode);
-    q2prof.precision(15);
-    q2prof << "#Position=i-" << dot << std::setw(16) << "\t Entropy(i)" << std::setw(16)
-           << "\t Q2plus \t Q2minus \t time \t \n";
-  }
+  auto output_files = open_output_files(param, dot);
   std::cout << "Trotter Gates for beta " << std::endl;
   const double dbeta = param.value("dbeta");
   TrotterEvolution expH_beta(sites, param, 0.5 * dbeta, EvolutionMode::ImaginaryTime);
@@ -484,137 +635,10 @@ int run_simulation(int argc, char *argv[]) {
       std::cout << "Time step #" << n << "/" << time_total << "\ttime=" << time << std::endl;
     }
     std::cout.flush();
-    std::vector<double> Myspec; // std::vector which will be the SVD spectrum
-
-    if (param.value("Entropy") != 0) {
-      double entr = Entropy(psi, dot, Myspec, 1);
-      ent << time << "\t" << std::setw(16) << std::setfill('0') << entr << "\t" << BondDim(psi, dot)
-          << "\t" << itensor::maxLinkDim(psi) << std::endl;
-
-      if (param.value("SVD_spec") > 0) {
-        if (n % int(param.value("SVD_spec") / tau) == 0) {
-          spec << "\"t=" << time << "\"" << std::endl;
-          int si = Myspec.size();
-          for (int i = 0; i < si; i++) {
-            spec << i + 1 << "\t" << Myspec[i] << "\t" << "\t" << time << std::endl;
-          }
-          if (n < time_total)
-            spec << std::endl << std::endl;
-        }
-      }
-    }
-
-    if (param.value("Eprof") > 0)
-      if (n % int(param.value("Eprof") / tau) == 0) {
-        eprof << "\"t=" << time << "\"" << std::endl;
-        for (int i = 1; i < N; i++) {
-          double entr_std = Entropy(psi, i, Myspec, 1); // p log p
-          eprof << i + 0.5 - dot << "\t" << std::setw(16) << std::setfill('0') << entr_std << "\t"
-                << std::setw(4) << std::setfill('0') << BondDim(psi, i) << "\t" << time
-                << std::endl;
-        }
-        if (n < time_total)
-          eprof << "\n\n"; // I need this part to separate time steps in gnuplot
-      }
-
-    if (param.value("Energy_beta") > 0) {
-      double en = 0;
-      double counter = 0;
-      int shift = (N / 4) % 2 == 0 ? N / 4 : N / 4 + 1;
-      for (int i = dot + 1 - shift; i < dot + 1 + shift; i += 2) {
-        en += Energy(psi, sites, i);
-        ++counter;
-      }
-      en /= (counter);
-
-      energy_beta << time << "\t"
-                  << std::real(itensor::innerC(psi, H, psi)) / std::real(itensor::innerC(psi, psi))
-                  << "\t" << en << "\t" << itensor::maxLinkDim(psi) << std::endl;
-    }
-    if (param.value("EnergyProf") > 0 && beta_steps_max <= n) {
-      if (n % int(param.value("EnergyProf") / tau) == 0) {
-        energy_prof << "\"t=" << time << "\"" << std::endl;
-        q1minus_prof << "\"t=" << time << "\"" << std::endl;
-        for (int i = 1; i <= N - 5; i += 2) {
-          const std::complex<double> q1 = Q1(psi, sites, i);
-          const double en = std::real(q1);
-          energy_prof << i / 2 - dot / 2 + 1 << "\t" << en << "\t" << time << std::endl;
-          const double q1minus = std::imag(q1);
-          q1minus_prof << i / 2 - dot / 2 + 1 << "\t" << q1minus << "\t" << time << std::endl;
-        }
-        energy_prof
-            << "\n\n"; // I need this part to separate time steps in *.dat files (for gnuplot)
-        q1minus_prof
-            << "\n\n"; // I need this part to separate time steps in *.dat files (for gnuplot)
-      }
-    }
-
-    if (param.value("Q2Prof") > 0 && beta_steps_max <= n) {
-      if (n % int(param.value("EnergyProf") / tau) == 0) {
-        q2prof << "\"t=" << time << "\"" << std::endl;
-        for (int i = 1; i <= N - 9; i += 2) {
-          const std::complex<double> q2 = Q2(psi, sites, i);
-          const double q2plus = std::real(q2);
-          const double q2minus = std::imag(q2);
-          q2prof << i / 2 - dot / 2 + 1 << "\t" << q2plus << "\t" << q2minus << "\t" << time
-                 << std::endl;
-        }
-        q2prof << "\n\n"; // I need this part to separate time steps in *.dat files (for gnuplot)
-      }
-    }
-
-    if (param.value("Sz") > 0 && beta_steps_max <= n) {
-      if (n % int(param.value("Sz") / tau) == 0) {
-        sz << "\"t=" << time << "\"" << std::endl;
-        double sz_tot = 0, sz_left = 0, sz_right = 0, sz_dot = 0;
-        double sz_odd = 0;
-        for (int i = 1; i <= N; i += 2) {
-          double s = Sz(psi, sites, i);
-          sz_tot += s;
-          if (i < dot)
-            sz_left += s;
-          if (i > dot)
-            sz_right += s;
-          if (i == dot)
-            sz_dot += s;
-          sz << i / 2 - dot / 2 + 1 << "\t" << s << "\t" << std::pow(-1, (i + 1) / 2) * s << "\t"
-             << time << std::endl;
-
-          if (((i + 1) / 2) % 2 == 1) { // odd site
-            sz_odd = s;
-          } else {
-            sz_avrg << i / 2 - dot / 2 + 1 << "\t" << 0.5 * (s + sz_odd) << "\t" << time
-                    << std::endl;
-          }
-        }
-
-        { // I need this part to separate time steps in *.dat files (for gnuplot)
-          sz << "\n\n";
-          sz_avrg << "\n\n";
-        }
-        std::cout << "\n<Sz_left>=" << sz_left << "\t" << "<Sz_right>=" << sz_right << "\t"
-                  << "<Sz_DOT>=" << sz_dot << "\t" << "<Sz_tot>=" << sz_tot << std::endl;
-      }
-    }
-
-    if (n < beta_steps_min) {
-      std::cout << "Temperature evolution with H" << std::endl;
-      expH_beta.evolve(psi, args0);
-      psi.orthogonalize(args);
-      std::cout << "dot = " << dot + 1 << std::endl;
-
-      psi.normalize();
-    } else if (n < beta_steps_max) {
-      std::cout << "Temperature evolution with half-chain H" << std::endl;
-      std::cout << "n/beta_steps_max = " << n << "/" << beta_steps_max << std::endl;
-      expH_beta_half.evolve(psi, args0);
-      psi.orthogonalize(args);
-      psi.normalize();
-    } else {
-      std::cout << "Time evolution" << std::endl;
-      expH.evolve(psi, args);
-      psi.orthogonalize(args);
-    }
+    write_observables(psi, sites, H, param, output_files, n, time, time_total, beta_steps_max, N,
+                      dot, tau);
+    evolve_step(psi, n, beta_steps_min, beta_steps_max, dot, args, args0, expH_beta, expH_beta_half,
+                expH);
     std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
     std::cout << "Norm = " << std::real(itensor::innerC(psi, psi)) << std::endl;
     std::cout << "Energy = " << std::real(itensor::innerC(psi, H, psi)) << std::endl << std::endl;
