@@ -36,6 +36,7 @@ target_link_libraries(folded_xxz_observables PUBLIC
 
 add_executable(3siteHam
   src/main.cc
+  src/parameters.cc
   src/simulation.cc
 )
 target_link_libraries(3siteHam PRIVATE folded_xxz::observables)

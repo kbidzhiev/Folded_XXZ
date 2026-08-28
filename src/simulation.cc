@@ -2,109 +2,13 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <string>
-#include <map>
-#include <limits>
 #include <complex>
-#include <cstdlib>
 #include <cmath>
 #include <vector>
-#include <algorithm>
-#include <stdexcept>
 #include <folded_xxz/observables.h>
+#include <folded_xxz/parameters.h>
 #include <folded_xxz/profile.h>
 #include <folded_xxz/simulation_schedule.h>
-
-double char2double(char *a) {
-  char *end_ptr;
-  const double x = std::strtod(a, &end_ptr);
-  if (end_ptr == a || ('\0' != *end_ptr))
-    std::cout << std::endl
-              << "ERROR :" << a << " is not a valid format for a double." << std::endl,
-        std::exit(0);
-  return x;
-}
-
-class Parameters {
-public:
-  double value(const std::string &name) const {
-    auto it = values_.find(name);
-    if (it == values_.end())
-      throw std::out_of_range("unknown parameter: " + name);
-    return it->second;
-  }
-  int integer_value(const std::string &name) const {
-    double v = value(name);
-    const double rounded = std::round(v);
-    if (std::abs(rounded - v) > 1e-6) {
-      throw std::invalid_argument("parameter " + name + " must be an integer");
-    }
-    if (rounded < std::numeric_limits<int>::min() || rounded > std::numeric_limits<int>::max()) {
-      throw std::out_of_range("parameter " + name + " is outside the int range");
-    }
-    return static_cast<int>(rounded);
-  }
-  void set(const std::string &name, double value) {
-    if (!contains(name))
-      throw std::out_of_range("unknown parameter: " + name);
-    values_.at(name) = value;
-  }
-  bool contains(const std::string &name) const { return values_.find(name) != values_.end(); }
-  void print(std::ostream &os) const {
-    for (const auto &[name, value] : values_) {
-      os << name << "=" << value << std::endl;
-    }
-  }
-  void parse_arguments(int argc, char *argv[]) {
-    for (int n = 1; n < argc; n++) {
-      std::string var_name(argv[n]);
-      if (!contains(var_name)) {
-        std::cerr << "Syntax error :" << var_name << std::endl;
-        std::cout << "List of command-line parameters :";
-        print(std::cout);
-        std::exit(0);
-      }
-
-      n++;
-      if (n == argc)
-        std::cerr << "Error: missing value after " << var_name << std::endl, std::exit(0);
-      set(var_name, char2double(argv[n]));
-    }
-  }
-
-protected:
-  void define(const std::string &name, double value) { values_.emplace(name, value); }
-
-private:
-  std::map<std::string, double> values_;
-};
-
-class ThreeSiteParam : public Parameters {
-public:
-  ThreeSiteParam() {
-    define("N", 10); // Length of the chain N-n
-    define("J", 1.0);
-    define("tau", 0.01); // time step for the unitary evolution
-    define("dbeta", 0.01);
-    define("T", 0); // Total (final) time
-    define("TL", 100);
-    define("TR", 5);
-    define("hL", 0); // alternating chemical potential or staggered magnetization
-    define("hR", 0);
-    define("Entropy", 0); // entanglement entropy p*log*p between left and right parts of system
-    define("Eprof",
-           0); // Entropy profile - parameter 0 -> nothing, dt>0 each second=integer parameter
-    define("EnergyProf", 0);
-    define("Q2Prof", 0);
-    define("Sz", 0);
-    define("SVD_spec", 0);    // SVD spectrum
-    define("max_bond", 4000); // maximum bond dimension
-    define("trunc", 1e-10);   // maximum truncation error
-    define("trunc0", 1e-10);
-    define("TrotterOrder", 2);
-    define("Energy_beta", 1);
-  }
-};
 
 class ThreeSiteHamiltonian {
 public:
