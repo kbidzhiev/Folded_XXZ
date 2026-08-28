@@ -20,34 +20,12 @@ public:
                    std::complex<double> tau, EvolutionMode mode,
                    ThermalRegion thermal_region = ThermalRegion::FullChain)
       : site_count_(itensor::length(sites)), mode_(mode), thermal_region_(thermal_region) {
-    initialize(sites, param, tau);
+    build_gates(sites, param, tau);
   }
 
   void evolve(itensor::MPS &psi, const itensor::Args &args) {
-    for (auto &gate : gates_) {
-      const int first_site = gate.first_site;
-      const auto &tensor = gate.tensor;
-      swap_next_sites(psi, first_site);
-      swap_next_sites(psi, first_site + 3);
-      psi.position(first_site + 2);
-      auto wavefunction = psi(first_site + 1) * psi(first_site + 2) * psi(first_site + 3);
-      wavefunction = tensor * wavefunction;
-      wavefunction /= itensor::norm(wavefunction);
-      wavefunction.noPrime();
-
-      auto [left_tensor, remaining_tensor] = itensor::factor(
-          wavefunction,
-          {itensor::siteIndex(psi, first_site + 1), itensor::leftLinkIndex(psi, first_site + 1)},
-          args);
-      const auto link = itensor::commonIndex(left_tensor, remaining_tensor);
-      auto [middle_tensor, right_tensor] =
-          itensor::factor(remaining_tensor, {itensor::siteIndex(psi, first_site + 2), link}, args);
-      psi.set(first_site + 1, left_tensor);
-      psi.set(first_site + 2, middle_tensor);
-      psi.set(first_site + 3, right_tensor);
-      swap_next_sites(psi, first_site + 3);
-      swap_next_sites(psi, first_site);
-    }
+    for (const auto &gate : gates_)
+      apply_gate(psi, gate, args);
   }
 
 private:
@@ -56,8 +34,8 @@ private:
     itensor::ITensor tensor;
   };
 
-  void initialize(const itensor::SiteSet &sites, const ThreeSiteParam &param,
-                  const std::complex<double> tau) {
+  void build_gates(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+                   const std::complex<double> tau) {
     const int first_site = 1;
     const int order = param.integer_value("TrotterOrder");
 
@@ -81,6 +59,30 @@ private:
     }
 
     throw std::invalid_argument("TrotterOrder must be 1 or 2");
+  }
+
+  void apply_gate(itensor::MPS &psi, const Gate &gate, const itensor::Args &args) const {
+    const int first_site = gate.first_site;
+    swap_next_sites(psi, first_site);
+    swap_next_sites(psi, first_site + 3);
+    psi.position(first_site + 2);
+    auto wavefunction = psi(first_site + 1) * psi(first_site + 2) * psi(first_site + 3);
+    wavefunction = gate.tensor * wavefunction;
+    wavefunction /= itensor::norm(wavefunction);
+    wavefunction.noPrime();
+
+    auto [left_tensor, remaining_tensor] = itensor::factor(
+        wavefunction,
+        {itensor::siteIndex(psi, first_site + 1), itensor::leftLinkIndex(psi, first_site + 1)},
+        args);
+    const auto link = itensor::commonIndex(left_tensor, remaining_tensor);
+    auto [middle_tensor, right_tensor] =
+        itensor::factor(remaining_tensor, {itensor::siteIndex(psi, first_site + 2), link}, args);
+    psi.set(first_site + 1, left_tensor);
+    psi.set(first_site + 2, middle_tensor);
+    psi.set(first_site + 3, right_tensor);
+    swap_next_sites(psi, first_site + 3);
+    swap_next_sites(psi, first_site);
   }
   void append_gate_layer(int first_site, const std::complex<double> tau,
                          const itensor::SiteSet &sites, const ThreeSiteParam &param) {
