@@ -46,6 +46,10 @@ if(BUILD_TESTING)
   add_executable(observables_test tests/observables_test.cc)
   target_link_libraries(observables_test PRIVATE folded_xxz::observables)
   add_test(NAME observables_test COMMAND observables_test)
+
+  add_executable(simulation_schedule_test tests/simulation_schedule_test.cc)
+  target_link_libraries(simulation_schedule_test PRIVATE folded_xxz::observables)
+  add_test(NAME simulation_schedule_test COMMAND simulation_schedule_test)
 endif()
 
 find_program(CLANG_FORMAT_EXECUTABLE clang-format)

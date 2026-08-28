@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <folded_xxz/observables.h>
 #include <folded_xxz/profile.h>
+#include <folded_xxz/simulation_schedule.h>
 
 double char2double(char *a) {
   char *end_ptr;
@@ -333,46 +334,6 @@ itensor::MPS create_initial_state(const itensor::SiteSet &sites) {
   return psi;
 }
 
-struct SimulationSchedule {
-  explicit SimulationSchedule(const ThreeSiteParam &param)
-      : tau(param.value("tau")), dbeta(param.value("dbeta")) {
-    const double left_temperature = param.value("TL");
-    const double right_temperature = param.value("TR");
-    if (tau <= 0 || dbeta <= 0 || left_temperature <= 0 || right_temperature <= 0) {
-      throw std::invalid_argument("tau, dbeta, TL, and TR must be positive");
-    }
-    if (param.value("T") < 0) {
-      throw std::invalid_argument("T must not be negative");
-    }
-    beta_steps_min = steps_for(std::min(1.0 / left_temperature, 1.0 / right_temperature), "beta");
-    beta_steps_max = steps_for(std::max(1.0 / left_temperature, 1.0 / right_temperature), "beta");
-    real_time_steps = steps_for(param.value("T"), "T", tau);
-    total_steps = beta_steps_max + real_time_steps;
-  }
-
-  bool output_due(int step, double interval, const char *name) const {
-    return step % steps_for(interval, name, tau) == 0;
-  }
-
-  double tau;
-  double dbeta;
-  int beta_steps_min;
-  int beta_steps_max;
-  int real_time_steps;
-  int total_steps;
-
-private:
-  int steps_for(double duration, const char *name, double step_size = 0) const {
-    const double effective_step = step_size == 0 ? dbeta : step_size;
-    const double steps = duration / effective_step;
-    const double rounded = std::round(steps);
-    if (steps < 0 || std::abs(steps - rounded) > 1e-6) {
-      throw std::invalid_argument(std::string(name) + " must be a multiple of its step size");
-    }
-    return static_cast<int>(rounded);
-  }
-};
-
 void evolve_step(itensor::MPS &psi, int step, const SimulationSchedule &schedule, int center,
                  const itensor::Args &real_time_args, const itensor::Args &thermal_args,
                  TrotterEvolution &thermal_evolution, TrotterEvolution &half_thermal_evolution,
@@ -611,7 +572,8 @@ int run_simulation(int argc, char *argv[]) {
 
   auto output_files = open_output_files(param, dot);
   std::cout << "Trotter Gates for beta " << std::endl;
-  const SimulationSchedule schedule(param);
+  const SimulationSchedule schedule(param.value("tau"), param.value("dbeta"), param.value("T"),
+                                    param.value("TL"), param.value("TR"));
   TrotterEvolution expH_beta(sites, param, 0.5 * schedule.dbeta, EvolutionMode::ImaginaryTime);
 
   std::cout << "Trotter Gates Half for beta " << std::endl;
