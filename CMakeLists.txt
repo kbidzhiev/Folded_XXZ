@@ -36,6 +36,7 @@ target_link_libraries(folded_xxz_observables PUBLIC
 
 add_library(folded_xxz_simulation
   src/initial_state.cc
+  src/output.cc
   src/parameters.cc
   src/three_site_hamiltonian.cc
   src/trotter_evolution.cc
