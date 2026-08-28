@@ -75,8 +75,8 @@ all-up product state.
 ## Run
 
 Parameters are supplied as whitespace-separated `name value` pairs. All
-values are numeric; unknown parameter names terminate the program after it
-prints the supported parameter set.
+values are numeric; missing, malformed, or unknown parameters terminate the
+program with an error message.
 
 ```bash
 ./build/3siteHam N 40 T 20 tau 0.01 TL 100 TR 5 EnergyProf 0.1 Sz 0.1
@@ -137,19 +137,17 @@ convenient to plot with tools such as gnuplot.
 
 ## Code map
 
-- `src/main.cc`: executable entry point.
-- `src/simulation.cc`: command-line parsing and configuration construction.
+- `src/main.cc`: command-line parsing and executable entry point.
 - `src/simulation_runner.cc`: simulation lifecycle, including state
   preparation, evolution, and output scheduling.
 - `src/initial_state.cc`, `src/three_site_hamiltonian.cc`,
   `src/trotter_evolution.cc`, and `src/observables.cc`: physics layer.
 - `include/folded_xxz/model_config.h`: typed model inputs shared by the
   Hamiltonian and Trotter evolution.
-- `src/parameters.cc`, `src/simulation_config.cc`, and
-  `include/folded_xxz/simulation_schedule.h`: runtime configuration and
-  command-line parameter handling.
-- `src/output.cc`: `ObservableWriter`, which owns output files and observable
-  serialization.
+- `src/simulation_config.cc` and `include/folded_xxz/simulation_schedule.h`:
+  typed command-line configuration and scheduling.
+- `src/output.cc`: internal `ObservableWriter`, which owns output files and
+  observable serialization.
 - `CMakeLists.txt`: CMake build definition and ITensor integration.
 - `Pictures/`: example energy-profile animations.
 

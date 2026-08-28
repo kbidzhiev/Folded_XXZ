@@ -5,7 +5,6 @@
 #include <memory>
 
 #include <folded_xxz/simulation_config.h>
-#include <folded_xxz/simulation_schedule.h>
 
 class ObservableWriter {
 public:

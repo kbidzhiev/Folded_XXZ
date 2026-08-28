@@ -39,16 +39,19 @@ target_link_libraries(folded_xxz_physics PUBLIC
 
 add_library(folded_xxz_runtime
   src/output.cc
-  src/parameters.cc
-  src/simulation.cc
   src/simulation_config.cc
   src/simulation_runner.cc
 )
 add_library(folded_xxz::runtime ALIAS folded_xxz_runtime)
 target_compile_features(folded_xxz_runtime PUBLIC cxx_std_17)
-target_link_libraries(folded_xxz_runtime PUBLIC folded_xxz::physics)
+target_include_directories(folded_xxz_runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(folded_xxz_runtime PRIVATE folded_xxz::physics)
 
 add_executable(3siteHam src/main.cc)
+target_include_directories(3siteHam PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
 target_link_libraries(3siteHam PRIVATE folded_xxz::runtime)
 
 include(CTest)
@@ -72,6 +75,7 @@ if(BUILD_TESTING)
   add_test(NAME initial_state_test COMMAND initial_state_test)
 
   add_executable(simulation_config_test tests/simulation_config_test.cc)
+  target_include_directories(simulation_config_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
   target_link_libraries(simulation_config_test PRIVATE folded_xxz::runtime)
   add_test(NAME simulation_config_test COMMAND simulation_config_test)
 endif()

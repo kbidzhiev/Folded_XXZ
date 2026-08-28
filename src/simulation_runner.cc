@@ -1,13 +1,12 @@
-#include <folded_xxz/simulation_runner.h>
-
 #include "itensor/all.h"
+#include "output.h"
 #include "profile.h"
+#include "simulation_runner.h"
 
 #include <iostream>
 #include <utility>
 
 #include <folded_xxz/initial_state.h>
-#include <folded_xxz/output.h>
 #include <folded_xxz/three_site_hamiltonian.h>
 #include <folded_xxz/trotter_evolution.h>
 

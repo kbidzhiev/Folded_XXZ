@@ -1,7 +1,6 @@
 #pragma once
 
 #include <folded_xxz/model_config.h>
-#include <folded_xxz/parameters.h>
 #include <folded_xxz/simulation_schedule.h>
 
 struct OutputConfig {
@@ -23,4 +22,4 @@ struct SimulationConfig {
   SimulationSchedule schedule;
 };
 
-SimulationConfig make_simulation_config(const ThreeSiteParam &parameters);
+SimulationConfig parse_simulation_config(int argc, char *argv[]);

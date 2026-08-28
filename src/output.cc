@@ -1,4 +1,4 @@
-#include <folded_xxz/output.h>
+#include "output.h"
 
 #include <complex>
 #include <fstream>
