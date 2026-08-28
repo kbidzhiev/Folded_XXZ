@@ -99,13 +99,8 @@ state but does not perform positive-time real-time evolution.
 | `Q2Prof` | `0` | Enable `Q2` profile output after preparation. |
 | `Sz` | `0` | Interval for magnetization profiles after preparation. |
 
-Several legacy parameters are accepted but are not used by the current main
-simulation path: `end`, `CurrentProf`, `Current`, `XXZ`, `beta`, `write_wf`,
-`TrotterOrder`, `antal`, `energy`, and `sweeps`.
-
-For time-resolved profile options, choose intervals compatible with `tau`.
-The program determines whether to write a profile using integer step counts
-derived from `interval / tau`.
+`TrotterOrder` selects a first- or second-order Trotter decomposition; the default is `2`.
+For time-resolved profile options, the interval must be a positive integer multiple of `tau`.
 
 ## Outputs
 

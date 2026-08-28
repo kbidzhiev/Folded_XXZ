@@ -5,24 +5,14 @@
 #include <string>
 #include <map>
 #include <limits>
-#include <sstream>
 #include <complex>
 #include <cstdlib>
-#include <math.h>
 #include <cmath>
 #include <vector>
 #include <algorithm>
-#include <exception>
+#include <stdexcept>
 #include <folded_xxz/observables.h>
 #include <folded_xxz/profile.h>
-
-template <class T> std::string to_string(const T &t, unsigned int precision = 0) {
-  std::stringstream ss;
-  if (precision > 0)
-    ss.precision(precision);
-  ss << t;
-  return ss.str();
-}
 
 double char2double(char *a) {
   char *end_ptr;
@@ -105,22 +95,13 @@ public:
            0); // Entropy profile - parameter 0 -> nothing, dt>0 each second=integer parameter
     define("EnergyProf", 0);
     define("Q2Prof", 0);
-    define("CurrentProf", 0);
-    define("Current", 0);
     define("Sz", 0);
     define("SVD_spec", 0);    // SVD spectrum
     define("max_bond", 4000); // maximum bond dimension
     define("trunc", 1e-10);   // maximum truncation error
     define("trunc0", 1e-10);
-    define("energy", 1e-10); // energy convergence criterion
-    define("sweeps", 999);   // maximum number of sweeps in the DMRG
     define("TrotterOrder", 2);
-    define("antal", 0);
-    define("XXZ", 0);
-    define("beta", 1);
     define("Energy_beta", 1);
-    define("write_wf", 0); // 0->do not write the w.-f. to disk. if dt>0 => w.-f. to disk
-                           // (over)written to disk every time=dt*integer.
   }
 };
 
@@ -311,16 +292,6 @@ private:
   std::vector<Gate> gates_;
 };
 
-void DisconnectChains(itensor::MPS &psi, const int j) {
-  psi.position(j);
-  auto WF = psi(j) * psi(j + 1);
-  auto [U, D, V] =
-      itensor::svd(WF, {itensor::siteIndex(psi, j), itensor::leftLinkIndex(psi, j)}, {"MaxDim", 1});
-  psi.set(j, U);
-  psi.set(j + 1, D * V);
-  psi.orthogonalize();
-}
-
 itensor::MPS create_initial_state(const itensor::SiteSet &sites) {
   const int site_count = itensor::length(sites);
   itensor::MPS psi(sites);
@@ -362,11 +333,51 @@ itensor::MPS create_initial_state(const itensor::SiteSet &sites) {
   return psi;
 }
 
-void evolve_step(itensor::MPS &psi, int step, int beta_steps_min, int beta_steps_max, int center,
+struct SimulationSchedule {
+  explicit SimulationSchedule(const ThreeSiteParam &param)
+      : tau(param.value("tau")), dbeta(param.value("dbeta")) {
+    const double left_temperature = param.value("TL");
+    const double right_temperature = param.value("TR");
+    if (tau <= 0 || dbeta <= 0 || left_temperature <= 0 || right_temperature <= 0) {
+      throw std::invalid_argument("tau, dbeta, TL, and TR must be positive");
+    }
+    if (param.value("T") < 0) {
+      throw std::invalid_argument("T must not be negative");
+    }
+    beta_steps_min = steps_for(std::min(1.0 / left_temperature, 1.0 / right_temperature), "beta");
+    beta_steps_max = steps_for(std::max(1.0 / left_temperature, 1.0 / right_temperature), "beta");
+    real_time_steps = steps_for(param.value("T"), "T", tau);
+    total_steps = beta_steps_max + real_time_steps;
+  }
+
+  bool output_due(int step, double interval, const char *name) const {
+    return step % steps_for(interval, name, tau) == 0;
+  }
+
+  double tau;
+  double dbeta;
+  int beta_steps_min;
+  int beta_steps_max;
+  int real_time_steps;
+  int total_steps;
+
+private:
+  int steps_for(double duration, const char *name, double step_size = 0) const {
+    const double effective_step = step_size == 0 ? dbeta : step_size;
+    const double steps = duration / effective_step;
+    const double rounded = std::round(steps);
+    if (steps < 0 || std::abs(steps - rounded) > 1e-6) {
+      throw std::invalid_argument(std::string(name) + " must be a multiple of its step size");
+    }
+    return static_cast<int>(rounded);
+  }
+};
+
+void evolve_step(itensor::MPS &psi, int step, const SimulationSchedule &schedule, int center,
                  const itensor::Args &real_time_args, const itensor::Args &thermal_args,
                  TrotterEvolution &thermal_evolution, TrotterEvolution &half_thermal_evolution,
                  TrotterEvolution &real_time_evolution) {
-  if (step < beta_steps_min) {
+  if (step < schedule.beta_steps_min) {
     std::cout << "Temperature evolution with H" << std::endl;
     thermal_evolution.evolve(psi, thermal_args);
     psi.orthogonalize(real_time_args);
@@ -375,9 +386,9 @@ void evolve_step(itensor::MPS &psi, int step, int beta_steps_min, int beta_steps
     return;
   }
 
-  if (step < beta_steps_max) {
+  if (step < schedule.beta_steps_max) {
     std::cout << "Temperature evolution with half-chain H" << std::endl;
-    std::cout << "n/beta_steps_max = " << step << "/" << beta_steps_max << std::endl;
+    std::cout << "n/beta_steps_max = " << step << "/" << schedule.beta_steps_max << std::endl;
     half_thermal_evolution.evolve(psi, thermal_args);
     psi.orthogonalize(real_time_args);
     psi.normalize();
@@ -456,26 +467,27 @@ OutputFiles open_output_files(const ThreeSiteParam &param, int center) {
 
 void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
                        const itensor::MPO &hamiltonian, const ThreeSiteParam &param,
-                       OutputFiles &output_files, int step, double time, int total_steps,
-                       int beta_steps, int site_count, int center, double tau) {
+                       OutputFiles &output_files, int step, double time,
+                       const SimulationSchedule &schedule, int site_count, int center) {
   std::vector<double> singular_values;
   if (param.value("Entropy") != 0) {
     const double entropy = Entropy(psi, center, singular_values, 1);
     output_files.entropy << time << "\t" << std::setw(16) << std::setfill('0') << entropy << "\t"
                          << BondDim(psi, center) << "\t" << itensor::maxLinkDim(psi) << std::endl;
 
-    if (param.value("SVD_spec") > 0 && step % int(param.value("SVD_spec") / tau) == 0) {
+    if (param.value("SVD_spec") > 0 &&
+        schedule.output_due(step, param.value("SVD_spec"), "SVD_spec")) {
       output_files.singular_values << "\"t=" << time << "\"" << std::endl;
       for (int index = 0; index < static_cast<int>(singular_values.size()); ++index) {
         output_files.singular_values << index + 1 << "\t" << singular_values[index] << "\t\t"
                                      << time << std::endl;
       }
-      if (step < total_steps)
+      if (step < schedule.total_steps)
         output_files.singular_values << std::endl << std::endl;
     }
   }
 
-  if (param.value("Eprof") > 0 && step % int(param.value("Eprof") / tau) == 0) {
+  if (param.value("Eprof") > 0 && schedule.output_due(step, param.value("Eprof"), "Eprof")) {
     output_files.entropy_profile << "\"t=" << time << "\"" << std::endl;
     for (int site = 1; site < site_count; ++site) {
       const double entropy = Entropy(psi, site, singular_values, 1);
@@ -483,7 +495,7 @@ void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::S
           << site + 0.5 - center << "\t" << std::setw(16) << std::setfill('0') << entropy << "\t"
           << std::setw(4) << std::setfill('0') << BondDim(psi, site) << "\t" << time << std::endl;
     }
-    if (step < total_steps)
+    if (step < schedule.total_steps)
       output_files.entropy_profile << "\n\n";
   }
 
@@ -504,8 +516,8 @@ void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::S
                              << std::endl;
   }
 
-  if (param.value("EnergyProf") > 0 && beta_steps <= step &&
-      step % int(param.value("EnergyProf") / tau) == 0) {
+  if (param.value("EnergyProf") > 0 && schedule.beta_steps_max <= step &&
+      schedule.output_due(step, param.value("EnergyProf"), "EnergyProf")) {
     output_files.energy_profile << "\"t=" << time << "\"" << std::endl;
     output_files.q1minus_profile << "\"t=" << time << "\"" << std::endl;
     for (int site = 1; site <= site_count - 5; site += 2) {
@@ -519,8 +531,8 @@ void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::S
     output_files.q1minus_profile << "\n\n";
   }
 
-  if (param.value("Q2Prof") > 0 && beta_steps <= step &&
-      step % int(param.value("EnergyProf") / tau) == 0) {
+  if (param.value("Q2Prof") > 0 && schedule.beta_steps_max <= step &&
+      schedule.output_due(step, param.value("Q2Prof"), "Q2Prof")) {
     output_files.q2_profile << "\"t=" << time << "\"" << std::endl;
     for (int site = 1; site <= site_count - 9; site += 2) {
       const std::complex<double> q2 = Q2(psi, sites, site);
@@ -530,7 +542,8 @@ void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::S
     output_files.q2_profile << "\n\n";
   }
 
-  if (param.value("Sz") > 0 && beta_steps <= step && step % int(param.value("Sz") / tau) == 0) {
+  if (param.value("Sz") > 0 && schedule.beta_steps_max <= step &&
+      schedule.output_due(step, param.value("Sz"), "Sz")) {
     output_files.magnetization << "\"t=" << time << "\"" << std::endl;
     double total_magnetization = 0;
     double left_magnetization = 0;
@@ -588,8 +601,6 @@ int run_simulation(int argc, char *argv[]) {
   std::cout << "2. Initial energy=" << energy << " .Norm = " << itensor::inner(psi, psi)
             << std::endl;
 
-  double tau = param.value("tau");
-
   auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.value("trunc"), "MaxDim",
                             param.integer_value("max_bond"), "Normalize",
                             false); // arguments for time dynamics
@@ -600,45 +611,36 @@ int run_simulation(int argc, char *argv[]) {
 
   auto output_files = open_output_files(param, dot);
   std::cout << "Trotter Gates for beta " << std::endl;
-  const double dbeta = param.value("dbeta");
-  TrotterEvolution expH_beta(sites, param, 0.5 * dbeta, EvolutionMode::ImaginaryTime);
+  const SimulationSchedule schedule(param);
+  TrotterEvolution expH_beta(sites, param, 0.5 * schedule.dbeta, EvolutionMode::ImaginaryTime);
 
   std::cout << "Trotter Gates Half for beta " << std::endl;
-  TrotterEvolution expH_beta_half(sites, param, 0.5 * dbeta, EvolutionMode::ImaginaryTime,
+  TrotterEvolution expH_beta_half(sites, param, 0.5 * schedule.dbeta, EvolutionMode::ImaginaryTime,
                                   ThermalRegion::RightHalf);
 
   std::cout << "Trotter Gates for tau" << std::endl;
   param.set("hL", 0);
   param.set("hR", 0);
-  TrotterEvolution expH(sites, param, itensor::Cplx_i * tau, EvolutionMode::RealTime);
+  TrotterEvolution expH(sites, param, itensor::Cplx_i * schedule.tau, EvolutionMode::RealTime);
 
-  // Prepare the biased thermal state.
-  const double TL = param.value("TL");
-  const double TR = param.value("TR");
-  const double beta_min = std::min(1. / TL, 1. / TR);
-  const double beta_max = std::max(1. / TL, 1. / TR);
-  const int beta_steps_min = beta_min / param.value("dbeta");
-  const int beta_steps_max = beta_max / param.value("dbeta");
-  const double n_steps = param.value("T") / param.value("tau");
   param.set("hL", 0);
   param.set("hR", 0);
   std::cout << "Finished preparing half-chain gates" << std::endl;
 
-  const int time_total = beta_steps_max + n_steps;
-  for (int n = 0; n <= time_total; ++n) {
-    double time = (n - beta_steps_max) * tau; //+param.value("time_shift");
+  for (int n = 0; n <= schedule.total_steps; ++n) {
+    double time = (n - schedule.beta_steps_max) * schedule.tau;
 
-    if (n < beta_steps_max) {
-      time = n * dbeta;
-      std::cout << "Beta(1/T) step #" << n << "/" << time_total << "\t beta=" << time << std::endl;
+    if (n < schedule.beta_steps_max) {
+      time = n * schedule.dbeta;
+      std::cout << "Beta(1/T) step #" << n << "/" << schedule.total_steps << "\t beta=" << time
+                << std::endl;
     } else {
-      std::cout << "Time step #" << n << "/" << time_total << "\ttime=" << time << std::endl;
+      std::cout << "Time step #" << n << "/" << schedule.total_steps << "\ttime=" << time
+                << std::endl;
     }
     std::cout.flush();
-    write_observables(psi, sites, H, param, output_files, n, time, time_total, beta_steps_max, N,
-                      dot, tau);
-    evolve_step(psi, n, beta_steps_min, beta_steps_max, dot, args, args0, expH_beta, expH_beta_half,
-                expH);
+    write_observables(psi, sites, H, param, output_files, n, time, schedule, N, dot);
+    evolve_step(psi, n, schedule, dot, args, args0, expH_beta, expH_beta_half, expH);
     std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
     std::cout << "Norm = " << std::real(itensor::innerC(psi, psi)) << std::endl;
     std::cout << "Energy = " << std::real(itensor::innerC(psi, H, psi)) << std::endl << std::endl;
