@@ -1,43 +1,62 @@
 #include "itensor/all.h"
 #include <folded_xxz/observables.h>
 
-double Entropy(itensor::MPS &psi, const int i, std::vector<double> &sing_vals, const double r) {
-  const auto bond_index = itensor::rightLinkIndex(psi, i);
-  const int bond_dim = itensor::dim(bond_index);
+double Entropy(itensor::MPS &psi, const int i, std::vector<double> &sing_vals,
+               const double r) { // returns the von Neumann entropy on some bond (i,i+1)
+  // index linking j to j+1
+  auto bond_index =
+      itensor::rightLinkIndex(psi, i); //=itensor::commonIndex(psi.A(i),psi.A(i+1),Link);
+  int bond_dim = itensor::dim(bond_index);
   psi.position(i);
   itensor::ITensor wf = psi(i) * psi(i + 1);
   auto U = psi(i);
   itensor::ITensor S, V;
-  const auto spectrum = itensor::svd(wf, U, S, V, {"MaxDim", bond_dim});
+  // Remark: We know that the rank of wf is at most bond_dim, so we specify
+  // this value to the SVD routine, in order to avoid many spurious small singular values (like ~
+  // 1e-30) which should in fact be exactly zero.
+  auto spectrum = itensor::svd(
+      wf, U, S, V,
+      {"MaxDim", bond_dim}); // Todo: we should use min(bond_dim, bond_dim_left*2, bond_dim_right*2)
   itensor::Real SvN = 0.;
+  itensor::Real sum = 0;
+  // cout<<"\tSingular value decomp.:"<<endl;
+  // cout<<"\t\tdim="<<spectrum.numEigsKept()<<endl;
   sing_vals.resize(spectrum.numEigsKept());
+  // cout<<"\t\tLargest sing. val:"<<spectrum.eig(1);
+  // cout<<"\tSmallest sing. val:"<<spectrum.eig(spectrum.numEigsKept())<<endl;
   int j = 0;
-  for (double p : spectrum.eigs()) {
+  for (double p : spectrum.eigs()) { // auto p give small values like 1e-322
     if (p > 1e-15) {
       sing_vals[j] = p;
       j++;
+      sum += p;
       SvN += -std::pow(p, r) * r * std::log(p);
     }
   }
+  // cout<<"Tr(probabilities) at site(" << i << ") = "<< sum << endl;
   return SvN;
 }
-
+// Bond Dim
 int BondDim(const itensor::MPS &psi, const int i) {
-  const auto bond_index = itensor::rightLinkIndex(psi, i);
-  return itensor::dim(bond_index);
+  auto bond_index = itensor::rightLinkIndex(psi, i);
+  return (itensor::dim(bond_index));
 }
 
+// < Sz_i >
 double Sz(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
-          const int i) {
+          const int i) { //<psi|Sz|psi> at site i
   psi.position(i);
-  auto ket = psi(i);
-  ket *= itensor::op(sites, "Sz", i);
-  ket *= itensor::dag(itensor::prime(psi(i), "Site"));
-  return std::real(itensor::eltC(ket));
+  itensor::ITensor ket = psi(i); // read only access
+  // itensor::ITensor bra = itensor::dag(itensor::prime(ket, "Site"));
+  auto Sz = itensor::op(sites, "Sz", i);
+  ket *= Sz;
+  ket *= itensor::dag(itensor::prime(psi(i), "Site")); // Multiply by the bra.
+  // itensor::ITensor B = ket * bra;
+  double sz = std::real(itensor::eltC(ket)); // 2 here is "sigma_z = 2* s_z"
+  return sz;
 }
 
-namespace {
-
+//< Sp_i Sm_i+4 >
 std::complex<double> Correlation(itensor::MPS &psi,
                                  const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
                                  const std::string &op_name1, const std::string &op_name2,
@@ -65,13 +84,14 @@ std::complex<double> Correlation(itensor::MPS &psi,
 std::complex<double> SzCorrelation(itensor::MPS &psi,
                                    const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
                                    const std::string &op_name1, const std::string &op_name2,
-                                   const int i) {
+                                   const int i) { //< Sp_i Sz_i+2 Sm_i+4|>
+  // (i,i+1) (i+2,i+3) (i+4,i+5)
   itensor::ITensor ket = psi(i);
   auto Sp = itensor::op(sites, op_name1, i);
   auto Sm = itensor::op(sites, op_name2, i + 4);
   auto Sz = itensor::op(sites, "Sz", i + 2);
   ket *= Sp;
-  const auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link");
+  auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // this link exist
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
   ket *= psi(i + 1);
   ket *= itensor::dag(itensor::prime(psi(i + 1), "Link"));
@@ -88,8 +108,7 @@ std::complex<double> SzCorrelation(itensor::MPS &psi,
   return correlation;
 }
 
-} // namespace
-
+// Kinetic plus potential energy at site i (i, i+2, i+4).
 double Energy(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
               const int i) {
   psi.position(i);
@@ -111,29 +130,58 @@ double Energy(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSi
   return energy;
 }
 
+// (SxSy-SySx)/2   - (SxSzSy-SySzSx)/2
+double Q1minus(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
+               const int i) {
+  psi.position(i);
+  // (SxSy-SySx)/2 = (SmSp-SpSm)/4
+  double q_kin = 2 * std::imag(4 * 0.5 * Correlation(psi, sites, "S-", "S+", i, i + 4));
+  double q_pot = 2 * std::imag(-8 * 0.5 * SzCorrelation(psi, sites, "S-", "S+", i));
+
+  // double q_kin = std::real(4 * 0.5 * (
+  //	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
+  //	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
+  // double q_pot = std::real(-8 * 0.5 * (
+  //	SzCorrelation(psi,sites, "Sx", "Sy", i )-
+  //	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
+
+  double conserved_charge_minus =
+      -0.5 * (q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
+  return conserved_charge_minus;
+}
+
 std::complex<double> Q1(itensor::MPS &psi,
                         const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites, const int i) {
   psi.position(i);
+  // (SxSy-SySx)/2 = (SmSp-SpSm)/4
   std::complex<double> q_kin = 2 * 4 * 0.5 * Correlation(psi, sites, "S-", "S+", i, i + 4);
   std::complex<double> q_pot = 2 * (-8) * 0.5 * SzCorrelation(psi, sites, "S-", "S+", i);
-  const double q1_plus = 0.5 * std::real(q_kin + q_pot);
+
+  // double q_kin = std::real(4 * 0.5 * (
+  //	Correlation(psi,sites, "Sx", "Sy", i, i+4)-
+  //	Correlation(psi,sites, "Sy", "Sx", i, i+4) ));
+  // double q_pot = std::real(-8 * 0.5 * (
+  //	SzCorrelation(psi,sites, "Sx", "Sy", i )-
+  //	SzCorrelation(psi,sites, "Sy", "Sx", i ) ));
+
+  double q1_plus =
+      0.5 * std::real(q_kin + q_pot); // '-' is in the definition of the q1minus = -(SxSy-SySx)/2
   double q1_minus = -0.5 * std::imag(q_kin + q_pot);
 
   return {q1_plus, q1_minus};
 }
 
-namespace {
-
+// K = SpSm + SmSp,   D = SmSp - SpSm
 std::complex<double> KKDD(itensor::MPS &psi,
                           const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites, const int i) {
   psi.position(i + 2);
   itensor::ITensor ket = psi(i + 2);
-  auto Sp1 = itensor::op(sites, "S-", i + 2);
-  auto Sp2 = itensor::op(sites, "S-", i + 4);
-  auto Sm1 = itensor::op(sites, "S+", i + 6);
-  auto Sm2 = itensor::op(sites, "S+", i + 8);
+  auto Sp1 = itensor::op(sites, "S-", i + 2); // i+1 on the physical sites
+  auto Sp2 = itensor::op(sites, "S-", i + 4); // i+2
+  auto Sm1 = itensor::op(sites, "S+", i + 6); // i+3
+  auto Sm2 = itensor::op(sites, "S+", i + 8); // i+4
   ket *= Sp1;
-  const auto ir = itensor::commonIndex(psi(i + 2), psi(i + 3), "Link");
+  auto ir = itensor::commonIndex(psi(i + 2), psi(i + 3), "Link"); // This link exists.
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i + 2), "Site"), ir));
   ket *= psi(i + 3);
   ket *= itensor::dag(itensor::prime(psi(i + 3), "Link"));
@@ -151,7 +199,8 @@ std::complex<double> KKDD(itensor::MPS &psi,
   ket *= Sm2;
   auto il = itensor::commonIndex(psi(i + 7), psi(i + 8), "Link");
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i + 8), "Site"), il));
-  const std::complex<double> kkdd = 0.25 * 16 * 2 * itensor::eltC(ket);
+  std::complex<double> kkdd =
+      0.25 * 16 * 2 * itensor::eltC(ket); // Convert four spin matrices to Pauli matrices.
   return kkdd;
 }
 
@@ -161,14 +210,14 @@ std::complex<double> Correlations5site(itensor::MPS &psi,
                                        const std::string &op_name3, const std::string &op_name4,
                                        const std::string &op_name5, const int i) {
   auto Op0 = itensor::op(sites, op_name1, i);
-  auto Op2 = itensor::op(sites, op_name2, i + 2);
-  auto Op4 = itensor::op(sites, op_name3, i + 4);
-  auto Op6 = itensor::op(sites, op_name4, i + 6);
-  auto Op8 = itensor::op(sites, op_name5, i + 8);
+  auto Op2 = itensor::op(sites, op_name2, i + 2); // i+1 on the physical sites
+  auto Op4 = itensor::op(sites, op_name3, i + 4); // i+2
+  auto Op6 = itensor::op(sites, op_name4, i + 6); // i+3
+  auto Op8 = itensor::op(sites, op_name5, i + 8); // i+4
 
   itensor::ITensor ket = psi(i);
   ket *= Op0;
-  const auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link");
+  auto ir = itensor::commonIndex(psi(i), psi(i + 1), "Link"); // This link exists.
   ket *= itensor::dag(itensor::prime(itensor::prime(psi(i), "Site"), ir));
 
   ket *= psi(i + 1);
@@ -204,14 +253,15 @@ std::complex<double> Correlations5site(itensor::MPS &psi,
   return correlation;
 }
 
-} // namespace
-
 std::complex<double> Q2(itensor::MPS &psi,
                         const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites, const int i) {
   std::complex<double> kkdd = KKDD(psi, sites, i);
   psi.position(i);
   std::complex<double> zk =
-      0.5 * 8 * (Correlations5site(psi, sites, "S-", "Id", "Sz", "Id", "S+", i));
+      0.5 * 8 *
+      (Correlations5site(psi, sites, "S-", "Id", "Sz", "Id", "S+", i)); // 2comes from REAL,
+  // 0.5 from (spsm+smsp)/2 = sxsx+sysy,
+  // 8 is 3spin to 3sigma
   std::complex<double> zzzk =
       0.5 * 32 * (Correlations5site(psi, sites, "S-", "Sz", "Sz", "Sz", "S+", i));
   std::complex<double> zzk1 =
@@ -222,4 +272,14 @@ std::complex<double> Q2(itensor::MPS &psi,
   double q2plus = -2 * std::real(q2);
   double q2minus = 2 * std::imag(q2);
   return {q2plus, q2minus};
+}
+
+double Q2plus(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
+              const int i) {
+  return -std::real(Q2(psi, sites, i));
+}
+
+double Q2minus(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
+               const int i) {
+  return std::imag(Q2(psi, sites, i));
 }
