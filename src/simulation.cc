@@ -318,7 +318,8 @@ int run_simulation(int argc, char *argv[]) {
     }
     std::cout.flush();
     write_observables(psi, sites, H, param, output_files, n, time, schedule, N, dot);
-    evolve_step(psi, n, schedule, dot, args, args0, expH_beta, expH_beta_half, expH);
+    if (n < schedule.total_steps)
+      evolve_step(psi, n, schedule, dot, args, args0, expH_beta, expH_beta_half, expH);
     std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;
     std::cout << "Norm = " << std::real(itensor::innerC(psi, psi)) << std::endl;
     std::cout << "Energy = " << std::real(itensor::innerC(psi, H, psi)) << std::endl << std::endl;
