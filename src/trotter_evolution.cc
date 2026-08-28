@@ -4,11 +4,11 @@
 #include <iostream>
 #include <stdexcept>
 
-TrotterEvolution::TrotterEvolution(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+TrotterEvolution::TrotterEvolution(const itensor::SiteSet &sites, const ModelConfig &config,
                                    std::complex<double> tau, EvolutionMode mode,
                                    ThermalRegion thermal_region)
     : site_count_(itensor::length(sites)), mode_(mode), thermal_region_(thermal_region) {
-  build_gates(sites, param, tau);
+  build_gates(sites, config, tau);
 }
 
 void TrotterEvolution::evolve(itensor::MPS &psi, const itensor::Args &args) const {
@@ -18,27 +18,27 @@ void TrotterEvolution::evolve(itensor::MPS &psi, const itensor::Args &args) cons
 
 std::size_t TrotterEvolution::gate_count() const { return gates_.size(); }
 
-void TrotterEvolution::build_gates(const itensor::SiteSet &sites, const ThreeSiteParam &param,
+void TrotterEvolution::build_gates(const itensor::SiteSet &sites, const ModelConfig &config,
                                    const std::complex<double> tau) {
   const int first_site = 1;
-  const int order = param.integer_value("TrotterOrder");
+  const int order = config.trotter_order;
   if (order == 1) {
     std::cout << "First-order Trotter scheme" << std::endl;
-    append_gate_layer(first_site, tau, sites, param);
-    append_gate_layer(first_site + 2, tau, sites, param);
-    append_gate_layer(first_site + 4, tau, sites, param);
+    append_gate_layer(first_site, tau, sites, config);
+    append_gate_layer(first_site + 2, tau, sites, config);
+    append_gate_layer(first_site + 4, tau, sites, config);
     return;
   }
   if (order == 2) {
     std::cout << "Second-order Trotter scheme" << std::endl;
-    append_gate_layer(first_site, 0.5 * tau, sites, param);
-    append_gate_layer(first_site + 2, 0.5 * tau, sites, param);
-    append_gate_layer(first_site + 4, tau, sites, param);
-    append_gate_layer(first_site + 2, 0.5 * tau, sites, param);
-    append_gate_layer(first_site, 0.5 * tau, sites, param);
+    append_gate_layer(first_site, 0.5 * tau, sites, config);
+    append_gate_layer(first_site + 2, 0.5 * tau, sites, config);
+    append_gate_layer(first_site + 4, tau, sites, config);
+    append_gate_layer(first_site + 2, 0.5 * tau, sites, config);
+    append_gate_layer(first_site, 0.5 * tau, sites, config);
     return;
   }
-  throw std::invalid_argument("TrotterOrder must be 1 or 2");
+  throw std::invalid_argument("Trotter order must be 1 or 2");
 }
 
 void TrotterEvolution::apply_gate(itensor::MPS &psi, const Gate &gate,
@@ -65,8 +65,7 @@ void TrotterEvolution::apply_gate(itensor::MPS &psi, const Gate &gate,
 }
 
 void TrotterEvolution::append_gate_layer(int first_site, const std::complex<double> tau,
-                                         const itensor::SiteSet &sites,
-                                         const ThreeSiteParam &param) {
+                                         const itensor::SiteSet &sites, const ModelConfig &config) {
   constexpr int gate_width = 4;
   constexpr int layer_spacing = 6;
   const int center = site_count_ / 2;
@@ -74,10 +73,9 @@ void TrotterEvolution::append_gate_layer(int first_site, const std::complex<doub
     if (mode_ == EvolutionMode::ImaginaryTime && thermal_region_ == ThermalRegion::RightHalf &&
         site < center)
       continue;
-    const double coupling = param.value("J");
-    auto hamiltonian = local_hamiltonian(sites, site, coupling);
+    auto hamiltonian = local_hamiltonian(sites, site, config.coupling);
     if (mode_ == EvolutionMode::ImaginaryTime)
-      add_thermal_field_terms(hamiltonian, sites, site, center, coupling, param);
+      add_thermal_field_terms(hamiltonian, sites, site, center, config.coupling, config);
     gates_.push_back({site, itensor::expHermitian(hamiltonian, -tau)});
   }
 }
@@ -100,9 +98,8 @@ itensor::ITensor TrotterEvolution::local_hamiltonian(const itensor::SiteSet &sit
 void TrotterEvolution::add_thermal_field_terms(itensor::ITensor &hamiltonian,
                                                const itensor::SiteSet &sites, int first_site,
                                                int center, double coupling,
-                                               const ThreeSiteParam &param) const {
-  const double field = first_site < center ? param.value("hL") * param.value("TL")
-                                           : param.value("hR") * param.value("TR");
+                                               const ModelConfig &config) const {
+  const double field = first_site < center ? config.left_thermal_field : config.right_thermal_field;
   add_field_term(hamiltonian, sites, first_site, first_site, coupling, field);
   if (first_site == site_count_ - 4) {
     add_field_term(hamiltonian, sites, first_site + 2, first_site, coupling, field);

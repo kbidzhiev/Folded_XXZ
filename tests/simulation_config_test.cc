@@ -33,7 +33,7 @@ int main() {
   parameters.set("EnergyProf", 0.2);
 
   const auto config = make_simulation_config(parameters);
-  expect(config.site_count == 8, "site count");
+  expect(config.model.site_count == 8, "site count");
   expect(config.max_bond_dimension == 4000, "maximum bond dimension");
   expect(config.output.entropy, "entropy output");
   expect(config.output.singular_value_interval == 0.1, "singular-value output interval");
@@ -42,4 +42,8 @@ int main() {
 
   parameters.set("N", 0);
   expect_invalid_argument([&] { make_simulation_config(parameters); }, "zero site count");
+
+  parameters.set("N", 4);
+  parameters.set("TrotterOrder", 3);
+  expect_invalid_argument([&] { make_simulation_config(parameters); }, "invalid Trotter order");
 }
