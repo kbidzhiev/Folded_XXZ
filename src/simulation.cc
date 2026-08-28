@@ -129,56 +129,46 @@ public:
 
 class ThreeSiteHamiltonian {
 public:
-  int dot;
-  itensor::AutoMPO ampo;
-  ThreeSiteHamiltonian(const itensor::SiteSet &sites, const ThreeSiteParam &param) : ampo(sites) {
-    N = itensor::length(sites);
-    init(param);
-    dot = N / 2;
-    std::cout << "A Hamiltonian with " << N << " sites was constructed." << std::endl;
+  ThreeSiteHamiltonian(const itensor::SiteSet &sites, const ThreeSiteParam &param)
+      : site_count_(itensor::length(sites)), center_(site_count_ / 2), terms_(sites) {
+    add_field_terms(param);
+    add_bulk_terms(param.value("J"));
+    if (param.value("PBC") != 0.0)
+      add_periodic_terms(param.value("J"));
   }
+  int center() const { return center_; }
+  itensor::MPO mpo() const { return itensor::toMPO(terms_); }
 
 private:
-  int N;
-  void init(const ThreeSiteParam &param) { //.init (param)
-    const double J = param.value("J");
-    const double n = param.value("begin");
+  void add_interaction_terms(int left, int middle, int right, double coupling) {
+    terms_ += coupling, "S+", left, "S-", right;
+    terms_ += coupling, "S-", left, "S+", right;
+    terms_ += -2 * coupling, "S+", left, "Sz", middle, "S-", right;
+    terms_ += -2 * coupling, "S-", left, "Sz", middle, "S+", right;
+  }
+  void add_field_terms(const ThreeSiteParam &param) {
+    const double coupling = param.value("J");
     const double hL = param.value("hL");
     const double hR = param.value("hR");
     const double TL = param.value("TL");
     const double TR = param.value("TR");
-    for (int j = n; j <= N; j += 2) {
-      const double mu = j <= N / 2 ? hL * TL : hR * TR;
-      ampo += -J * (mu)*std::pow(-1, (j + 1) / 2), "Sz", j;
-    }
-    for (int j = n; j <= N - 4; j += 2) {
-      // Coefficients convert spin-1/2 operators to Pauli-matrix conventions.
-      ampo += J, "S+", j, "S-", j + 4;
-      ampo += J, "S-", j, "S+", j + 4;
-      ampo += -2 * J, "S+", j, "Sz", j + 2, "S-", j + 4;
-      ampo += -2 * J, "S-", j, "Sz", j + 2, "S+", j + 4;
-    }
-
-    std::cout << "Three-site Hamiltonian constructed" << std::endl;
-    if (param.value("PBC")) {
-      // This part realizes Periodic Boundary Condition (PBC)
-      // term (N-1,N,1)
-      ampo += J, "S+", N - 3, "S-", 1;
-      ampo += J, "S-", N - 3, "S+", 1;
-      ampo += -2 * J, "S+", N - 3, "Sz", N - 1, "S-", 1;
-      ampo += -2 * J, "S-", N - 3, "Sz", N - 1, "S+", 1;
-      std::cout << "PBC;\n sites (" << (N - 3 + 1) / 2 << ", " << (N - 1 + 1) / 2 << ", "
-                << (1 + 1) / 2 << "), ";
-      // term (N,1,2)
-      ampo += J, "S+", N - 1, "S-", 3;
-      ampo += J, "S-", N - 1, "S+", 3;
-      ampo += -2 * J, "S+", N - 1, "Sz", 1, "S-", 3;
-      ampo += -2 * J, "S-", N - 1, "Sz", 1, "S+", 3;
-      std::cout << "(" << (N - 1 + 2) / 2 << ", " << (1 + 1) / 2 << ", " << (3 + 1) / 2 << ")"
-                << std::endl;
-      std::cout << "Three-site Hamiltonian uses periodic boundaries" << std::endl;
+    for (int site = 1; site <= site_count_; site += 2) {
+      const double mu = site <= center_ ? hL * TL : hR * TR;
+      terms_ += -coupling * mu * std::pow(-1, (site + 1) / 2), "Sz", site;
     }
   }
+  void add_bulk_terms(double coupling) {
+    for (int left = 1; left <= site_count_ - 4; left += 2) {
+      add_interaction_terms(left, left + 2, left + 4, coupling);
+    }
+  }
+  void add_periodic_terms(double coupling) {
+    add_interaction_terms(site_count_ - 3, site_count_ - 1, 1, coupling);
+    add_interaction_terms(site_count_ - 1, 1, 3, coupling);
+  }
+  const int site_count_;
+  const int center_;
+  itensor::AutoMPO terms_;
 };
 
 class TrotterExp {
@@ -363,9 +353,9 @@ int run_simulation(int argc, char *argv[]) {
   itensor::SpinHalf sites(N, {"ConserveQNs=", false}); // HILBERT_SPACE = itensor::SpinHalf
   itensor::MPS psi;
   std::cout << "Constructing Hamiltonian" << std::endl;
-  ThreeSiteHamiltonian Ham(sites, param);
-  const int dot = Ham.dot;
-  auto H = itensor::toMPO(Ham.ampo);
+  ThreeSiteHamiltonian hamiltonian(sites, param);
+  const int dot = hamiltonian.center();
+  auto H = hamiltonian.mpo();
   std::cout << "Finished constructing Hamiltonian" << std::endl;
   auto energy(0);
   psi = itensor::MPS(sites);
