@@ -4,7 +4,7 @@
 #include <folded_xxz/output.h>
 #include <folded_xxz/parameters.h>
 #include <folded_xxz/profile.h>
-#include <folded_xxz/simulation_schedule.h>
+#include <folded_xxz/simulation_config.h>
 #include <folded_xxz/three_site_hamiltonian.h>
 #include <folded_xxz/trotter_evolution.h>
 
@@ -43,7 +43,8 @@ int run_simulation(int argc, char *argv[]) {
 
   param.print(std::cout); // Print parameters
   std::cout.precision(15);
-  const int N = 2 * param.integer_value("N");
+  const auto config = make_simulation_config(param);
+  const int N = config.site_count;
 
   itensor::SpinHalf sites(N, {"ConserveQNs=", false}); // HILBERT_SPACE = itensor::SpinHalf
   std::cout << "Constructing Hamiltonian" << std::endl;
@@ -57,18 +58,17 @@ int run_simulation(int argc, char *argv[]) {
   std::cout << "2. Initial energy=" << energy << " .Norm = " << itensor::inner(psi, psi)
             << std::endl;
 
-  auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.value("trunc"), "MaxDim",
-                            param.integer_value("max_bond"), "Normalize",
+  auto args = itensor::Args("Method=", "DensityMatrix", "Cutoff", config.real_time_cutoff, "MaxDim",
+                            config.max_bond_dimension, "Normalize",
                             false); // arguments for time dynamics
 
-  auto args0 = itensor::Args("Method=", "DensityMatrix", "Cutoff", param.value("trunc0"), "MaxDim",
-                             param.integer_value("max_bond"), "Normalize",
+  auto args0 = itensor::Args("Method=", "DensityMatrix", "Cutoff", config.thermal_cutoff, "MaxDim",
+                             config.max_bond_dimension, "Normalize",
                              false); // arguments for IMAGINARY time == initial temperature state
 
-  auto output_files = open_output_files(param, dot);
+  auto output_files = open_output_files(config.output, dot);
   std::cout << "Trotter Gates for beta " << std::endl;
-  const SimulationSchedule schedule(param.value("tau"), param.value("dbeta"), param.value("T"),
-                                    param.value("TL"), param.value("TR"));
+  const auto &schedule = config.schedule;
   TrotterEvolution expH_beta(sites, param, 0.5 * schedule.dbeta, EvolutionMode::ImaginaryTime);
 
   std::cout << "Trotter Gates Half for beta " << std::endl;
@@ -96,7 +96,7 @@ int run_simulation(int argc, char *argv[]) {
                 << std::endl;
     }
     std::cout.flush();
-    write_observables(psi, sites, H, param, output_files, n, time, schedule, N, dot);
+    write_observables(psi, sites, H, config.output, output_files, n, time, schedule, N, dot);
     if (n < schedule.total_steps)
       evolve_step(psi, n, schedule, dot, args, args0, expH_beta, expH_beta_half, expH);
     std::cout << "max bond dim = " << itensor::maxLinkDim(psi) << std::endl;

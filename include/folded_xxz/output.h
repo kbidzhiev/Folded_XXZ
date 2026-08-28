@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include <folded_xxz/parameters.h>
+#include <folded_xxz/simulation_config.h>
 #include <folded_xxz/simulation_schedule.h>
 
 struct OutputFiles {
@@ -19,9 +19,9 @@ struct OutputFiles {
   std::ofstream q2_profile;
 };
 
-OutputFiles open_output_files(const ThreeSiteParam &param, int center);
+OutputFiles open_output_files(const OutputConfig &config, int center);
 
 void write_observables(itensor::MPS &psi, const itensor::BasicSiteSet<itensor::SpinHalfSite> &sites,
-                       const itensor::MPO &hamiltonian, const ThreeSiteParam &param,
+                       const itensor::MPO &hamiltonian, const OutputConfig &config,
                        OutputFiles &output_files, int step, double time,
                        const SimulationSchedule &schedule, int site_count, int center);
