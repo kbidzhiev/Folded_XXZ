@@ -38,6 +38,7 @@ add_executable(3siteHam
   src/main.cc
   src/parameters.cc
   src/simulation.cc
+  src/three_site_hamiltonian.cc
 )
 target_link_libraries(3siteHam PRIVATE folded_xxz::observables)
 

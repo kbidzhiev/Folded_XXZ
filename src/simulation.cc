@@ -9,44 +9,7 @@
 #include <folded_xxz/parameters.h>
 #include <folded_xxz/profile.h>
 #include <folded_xxz/simulation_schedule.h>
-
-class ThreeSiteHamiltonian {
-public:
-  ThreeSiteHamiltonian(const itensor::SiteSet &sites, const ThreeSiteParam &param)
-      : site_count_(itensor::length(sites)), center_(site_count_ / 2), terms_(sites) {
-    add_field_terms(param);
-    add_bulk_terms(param.value("J"));
-  }
-  int center() const { return center_; }
-  itensor::MPO mpo() const { return itensor::toMPO(terms_); }
-
-private:
-  void add_interaction_terms(int left, int middle, int right, double coupling) {
-    terms_ += coupling, "S+", left, "S-", right;
-    terms_ += coupling, "S-", left, "S+", right;
-    terms_ += -2 * coupling, "S+", left, "Sz", middle, "S-", right;
-    terms_ += -2 * coupling, "S-", left, "Sz", middle, "S+", right;
-  }
-  void add_field_terms(const ThreeSiteParam &param) {
-    const double coupling = param.value("J");
-    const double hL = param.value("hL");
-    const double hR = param.value("hR");
-    const double TL = param.value("TL");
-    const double TR = param.value("TR");
-    for (int site = 1; site <= site_count_; site += 2) {
-      const double mu = site <= center_ ? hL * TL : hR * TR;
-      terms_ += -coupling * mu * std::pow(-1, (site + 1) / 2), "Sz", site;
-    }
-  }
-  void add_bulk_terms(double coupling) {
-    for (int left = 1; left <= site_count_ - 4; left += 2) {
-      add_interaction_terms(left, left + 2, left + 4, coupling);
-    }
-  }
-  const int site_count_;
-  const int center_;
-  itensor::AutoMPO terms_;
-};
+#include <folded_xxz/three_site_hamiltonian.h>
 
 enum class EvolutionMode { ImaginaryTime, RealTime };
 enum class ThermalRegion { FullChain, RightHalf };
