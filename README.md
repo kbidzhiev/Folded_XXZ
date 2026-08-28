@@ -5,8 +5,21 @@ chain with three-site interactions. It uses [ITensor](https://itensor.org/)
 to prepare a thermally biased state through imaginary-time evolution, then
 evolve it in real time with Trotter gates.
 
+This code accompanies the scientific work published in
+[SciPost Physics 10, 099 (2021)](https://scipost.org/SciPostPhys.10.5.099).
+
 The program is currently a single simulation executable built from a reusable
 observables library and its driver in `src/`.
+
+## Example Results
+
+Energy-profile evolution:
+
+![Energy profile evolution](Pictures/Energy_profile.gif)
+
+Rescaled energy-profile evolution:
+
+![Rescaled energy profile evolution](Pictures/Energy_profile_rescaled.gif)
 
 ## Requirements
 
